@@ -346,7 +346,22 @@ def test_direct_contract_create_rejects_duplicate_quote(contract_context):
 
 
 @pytest.mark.django_db
-def test_issue_contract_is_idempotent(contract_context):
+def test_issue_contract_is_idempotent(contract_context, monkeypatch):
+    class FakeASSContractIssuer:
+        calls = 0
+
+        def issue(self, contract):
+            self.__class__.calls += 1
+            return {
+                "contractNumber": "ASS-CONTRACT-001",
+                "attestationReference": "ASS-ATT-001",
+                "qrCodeReference": "ASS-QR-001",
+            }
+
+    monkeypatch.setattr(
+        "apps.contracts.services.ASSContractIssuer",
+        FakeASSContractIssuer,
+    )
     client = APIClient()
     client.force_authenticate(contract_context["contributor_a"])
 
@@ -365,8 +380,9 @@ def test_issue_contract_is_idempotent(contract_context):
     assert first_response.status_code == status.HTTP_200_OK
     assert second_response.status_code == status.HTTP_200_OK
     assert contract_context["contract_a"].status == Contract.Status.ISSUED
-    assert contract_context["contract_a"].contract_number.startswith("HORUS-")
+    assert contract_context["contract_a"].contract_number == "ASS-CONTRACT-001"
     assert first_response.data["contract_number"] == second_response.data["contract_number"]
+    assert FakeASSContractIssuer.calls == 1
 
 
 @pytest.mark.django_db

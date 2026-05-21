@@ -2,9 +2,24 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.ass_api.client import ASSAPIClient
 from apps.payments.models import Payment
 
+from .ass_payloads import build_ass_qrcode_payload
 from .models import Contract
+
+
+class ASSContractIssuer:
+    def __init__(self, client=None):
+        self.client = client or ASSAPIClient()
+
+    def issue(self, contract):
+        payload = build_ass_qrcode_payload(contract)
+        return self.client.request_qrcode(
+            payload,
+            partner_group=contract.partner_group,
+            contract=contract,
+        )
 
 
 @transaction.atomic
@@ -39,17 +54,63 @@ def create_contract_from_payment(*, payment, created_by=None):
     return contract
 
 
-@transaction.atomic
-def issue_contract(*, contract):
-    contract = (
-        Contract.objects.select_for_update()
-        .select_related("payment", "quote", "partner_group")
-        .get(pk=contract.pk)
-    )
+def issue_contract(*, contract, issuer=None):
+    contract = _get_issueable_contract(contract.pk)
 
     if contract.status == Contract.Status.ISSUED:
         return contract
 
+    issuer = issuer or ASSContractIssuer()
+    ass_response = issuer.issue(contract)
+
+    with transaction.atomic():
+        contract = (
+            Contract.objects.select_for_update()
+            .select_related("payment", "quote", "partner_group")
+            .get(pk=contract.pk)
+        )
+
+        if contract.status == Contract.Status.ISSUED:
+            return contract
+
+        _validate_before_issue(contract)
+        _apply_ass_response(contract, ass_response)
+        contract.status = Contract.Status.ISSUED
+        contract.issued_at = timezone.now()
+        contract.full_clean()
+        contract.save(
+            update_fields=[
+                "contract_number",
+                "attestation_reference",
+                "qr_code_reference",
+                "status",
+                "issued_at",
+                "updated_at",
+            ]
+        )
+        return contract
+
+
+def _get_issueable_contract(contract_id):
+    with transaction.atomic():
+        contract = (
+            Contract.objects.select_for_update()
+            .select_related(
+                "payment",
+                "quote",
+                "partner_group",
+                "client",
+                "vehicle",
+                "contributor",
+            )
+            .get(pk=contract_id)
+        )
+        if contract.status != Contract.Status.ISSUED:
+            _validate_before_issue(contract)
+        return contract
+
+
+def _validate_before_issue(contract):
     if contract.payment.status != Payment.Status.CONFIRMED:
         raise serializers.ValidationError(
             {"payment": "Aucune attestation ne peut etre generee sans paiement confirme."}
@@ -60,24 +121,68 @@ def issue_contract(*, contract):
             {"status": "Un contrat annule ne peut pas etre emis."}
         )
 
-    if not contract.contract_number:
-        contract.contract_number = f"HORUS-{timezone.now().year}-{contract.id:06d}"
-    if not contract.attestation_reference:
-        contract.attestation_reference = f"LOCAL-ATT-{contract.id:06d}"
-    if not contract.qr_code_reference:
-        contract.qr_code_reference = f"LOCAL-QR-{contract.id:06d}"
 
-    contract.status = Contract.Status.ISSUED
-    contract.issued_at = timezone.now()
-    contract.full_clean()
-    contract.save(
-        update_fields=[
-            "contract_number",
-            "attestation_reference",
-            "qr_code_reference",
-            "status",
-            "issued_at",
-            "updated_at",
-        ]
+def _apply_ass_response(contract, ass_response):
+    contract_number = _find_value(
+        ass_response,
+        ("contract_number", "contractNumber", "numeroPolice", "numero_police", "police"),
     )
-    return contract
+    attestation_reference = _find_value(
+        ass_response,
+        (
+            "attestation_reference",
+            "attestationReference",
+            "referenceAttestation",
+            "reference_attestation",
+            "attestation",
+        ),
+    )
+    qr_code_reference = _find_value(
+        ass_response,
+        (
+            "qr_code_reference",
+            "qrCodeReference",
+            "qrcode_reference",
+            "qrcode",
+            "qrCode",
+            "codeQr",
+            "code_qr",
+        ),
+    )
+
+    if not any((contract_number, attestation_reference, qr_code_reference)):
+        raise serializers.ValidationError(
+            {"ass_api": "La reponse ASS ne contient aucune reference exploitable."}
+        )
+
+    if contract_number:
+        contract.contract_number = str(contract_number)
+    if attestation_reference:
+        contract.attestation_reference = str(attestation_reference)
+    if qr_code_reference:
+        contract.qr_code_reference = str(qr_code_reference)
+
+
+def _find_value(value, keys):
+    normalized_keys = {_normalize_key(key) for key in keys}
+
+    if isinstance(value, dict):
+        for key, nested_value in value.items():
+            if _normalize_key(key) in normalized_keys and nested_value not in (None, ""):
+                return nested_value
+        for nested_value in value.values():
+            found_value = _find_value(nested_value, keys)
+            if found_value not in (None, ""):
+                return found_value
+
+    if isinstance(value, list):
+        for item in value:
+            found_value = _find_value(item, keys)
+            if found_value not in (None, ""):
+                return found_value
+
+    return None
+
+
+def _normalize_key(key):
+    return str(key).replace("_", "").replace("-", "").lower()
