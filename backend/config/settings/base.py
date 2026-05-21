@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "apps.quotes",
     "apps.payments",
     "apps.contracts",
+    "apps.ass_api",
 ]
 
 MIDDLEWARE = [
@@ -105,3 +106,8 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
 }
+
+ASS_BASE_URL = config("ASS_BASE_URL", default="")
+ASS_USERNAME = config("ASS_USERNAME", default="")
+ASS_PASSWORD = config("ASS_PASSWORD", default="")
+ASS_TIMEOUT_SECONDS = config("ASS_TIMEOUT_SECONDS", default=30, cast=int)
