@@ -1,0 +1,135 @@
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from apps.groups.models import PartnerGroup
+
+from .models import GroupWallet, Payment, WalletTransaction
+from .serializers import (
+    GroupWalletSerializer,
+    PaymentConfirmSerializer,
+    PaymentSerializer,
+    WalletActionSerializer,
+    WalletTransactionSerializer,
+)
+from .services import confirm_payment, credit_wallet, debit_wallet, get_or_create_wallet
+
+
+class GroupWalletViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = GroupWalletSerializer
+    filterset_fields = ["partner_group", "currency"]
+    ordering_fields = ["id", "balance", "created_at", "updated_at"]
+    ordering = ["id"]
+
+    def _ensure_accessible_wallets(self):
+        user = self.request.user
+        if user.is_general_admin:
+            for partner_group in PartnerGroup.objects.all():
+                get_or_create_wallet(partner_group)
+        elif user.is_group_admin:
+            get_or_create_wallet(user.partner_group)
+
+    def get_queryset(self):
+        user = self.request.user
+        self._ensure_accessible_wallets()
+        queryset = GroupWallet.objects.select_related("partner_group")
+
+        if user.is_general_admin:
+            return queryset
+        if user.is_group_admin:
+            return queryset.filter(partner_group=user.partner_group)
+        return queryset.none()
+
+    @action(detail=True, methods=["post"])
+    def credit(self, request, pk=None):
+        wallet = self.get_object()
+        serializer = WalletActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        wallet_transaction = credit_wallet(
+            wallet=wallet,
+            amount=serializer.validated_data["amount"],
+            created_by=request.user,
+            idempotency_key=serializer.validated_data.get("idempotency_key", ""),
+            reference=serializer.validated_data.get("reference", ""),
+        )
+        return Response(
+            WalletTransactionSerializer(wallet_transaction).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"])
+    def debit(self, request, pk=None):
+        wallet = self.get_object()
+        serializer = WalletActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        wallet_transaction = debit_wallet(
+            wallet=wallet,
+            amount=serializer.validated_data["amount"],
+            created_by=request.user,
+            idempotency_key=serializer.validated_data.get("idempotency_key", ""),
+            reference=serializer.validated_data.get("reference", ""),
+        )
+        return Response(
+            WalletTransactionSerializer(wallet_transaction).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class WalletTransactionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    serializer_class = WalletTransactionSerializer
+    filterset_fields = ["partner_group", "wallet", "transaction_type", "direction"]
+    ordering_fields = ["id", "created_at", "amount"]
+    ordering = ["id"]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = WalletTransaction.objects.select_related(
+            "wallet",
+            "partner_group",
+            "created_by",
+        )
+
+        if user.is_general_admin:
+            return queryset
+        if user.is_group_admin:
+            return queryset.filter(partner_group=user.partner_group)
+        return queryset.none()
+
+
+class PaymentViewSet(viewsets.ModelViewSet):
+    serializer_class = PaymentSerializer
+    filterset_fields = ["partner_group", "quote", "client", "contributor", "method", "status"]
+    search_fields = ["external_reference", "idempotency_key", "quote__reference"]
+    ordering_fields = ["id", "created_at", "updated_at", "confirmed_at", "amount"]
+    ordering = ["id"]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Payment.objects.select_related(
+            "partner_group",
+            "quote",
+            "client",
+            "contributor",
+            "created_by",
+            "wallet_transaction",
+        )
+
+        if user.is_general_admin:
+            return queryset
+        if user.is_group_admin:
+            return queryset.filter(partner_group=user.partner_group)
+        if user.is_contributor:
+            return queryset.filter(contributor=user)
+        return queryset.none()
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        payment = self.get_object()
+        serializer = PaymentConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = confirm_payment(
+            payment=payment,
+            confirmed_by=request.user,
+            idempotency_key=serializer.validated_data.get("idempotency_key", ""),
+        )
+        return Response(PaymentSerializer(payment, context={"request": request}).data)
