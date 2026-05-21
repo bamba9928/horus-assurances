@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from apps.accounts.views import UserViewSet
 from apps.clients.views import ClientViewSet
 from apps.groups.views import PartnerGroupViewSet
+from apps.quotes.views import QuoteViewSet
 from apps.vehicles.views import VehicleViewSet
 
 router = DefaultRouter()
@@ -13,6 +14,7 @@ router.register("groups", PartnerGroupViewSet, basename="partnergroup")
 router.register("users", UserViewSet, basename="user")
 router.register("clients", ClientViewSet, basename="client")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
+router.register("quotes", QuoteViewSet, basename="quote")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
