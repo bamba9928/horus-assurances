@@ -7,6 +7,8 @@ from rest_framework import serializers
 from apps.audit.models import AuditLog
 from apps.audit.services import record_audit_event
 from apps.contracts.models import Contract
+from apps.notifications.models import Notification
+from apps.notifications.services import create_notifications_for_group
 
 from .models import Commission, CommissionRule
 
@@ -116,6 +118,20 @@ def generate_commission_for_contract(*, contract, actor=None):
             "net_to_pay_amount": str(net_to_pay_amount),
         },
     )
+    create_notifications_for_group(
+        partner_group=contract.partner_group,
+        contributor=contract.contributor,
+        notification_type=Notification.Type.COMMISSION_GENERATED,
+        title="Commission generee",
+        message=f"Commission generee pour le contrat {contract.contract_number}.",
+        target=commission,
+        metadata={
+            "commission_id": commission.id,
+            "contract_id": contract.id,
+            "amount": str(amount),
+            "net_to_pay_amount": str(net_to_pay_amount),
+        },
+    )
     return commission
 
 
@@ -138,6 +154,20 @@ def mark_commission_paid(*, commission, actor=None):
         actor=actor,
         target=commission,
         metadata={
+            "amount": str(commission.amount),
+            "net_to_pay_amount": str(commission.net_to_pay_amount),
+        },
+    )
+    create_notifications_for_group(
+        partner_group=commission.partner_group,
+        contributor=commission.contributor,
+        include_group_admins=False,
+        notification_type=Notification.Type.COMMISSION_PAID,
+        title="Commission payee",
+        message=f"Commission de {commission.amount} payee.",
+        target=commission,
+        metadata={
+            "commission_id": commission.id,
             "amount": str(commission.amount),
             "net_to_pay_amount": str(commission.net_to_pay_amount),
         },

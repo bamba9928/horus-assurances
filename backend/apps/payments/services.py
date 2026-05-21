@@ -6,6 +6,8 @@ from rest_framework import serializers
 
 from apps.audit.models import AuditLog
 from apps.audit.services import record_audit_event
+from apps.notifications.models import Notification
+from apps.notifications.services import create_notifications_for_group
 
 from .models import GroupWallet, Payment, WalletTransaction
 
@@ -161,6 +163,20 @@ def confirm_payment(*, payment, confirmed_by=None, idempotency_key=""):
             "amount": str(payment.amount),
             "method": payment.method,
             "idempotency_key": idempotency_key,
+        },
+    )
+    create_notifications_for_group(
+        partner_group=payment.partner_group,
+        contributor=payment.contributor,
+        notification_type=Notification.Type.PAYMENT_CONFIRMED,
+        title="Paiement confirme",
+        message=f"Paiement confirme pour le devis {payment.quote.reference}.",
+        target=payment,
+        metadata={
+            "payment_id": payment.id,
+            "quote_id": payment.quote_id,
+            "amount": str(payment.amount),
+            "method": payment.method,
         },
     )
     return payment

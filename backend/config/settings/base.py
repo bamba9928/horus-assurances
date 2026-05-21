@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "apps.ass_api",
     "apps.commissions",
     "apps.audit",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [

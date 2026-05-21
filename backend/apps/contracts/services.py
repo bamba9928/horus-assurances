@@ -5,6 +5,8 @@ from rest_framework import serializers
 from apps.ass_api.client import ASSAPIClient
 from apps.audit.models import AuditLog
 from apps.audit.services import record_audit_event
+from apps.notifications.models import Notification
+from apps.notifications.services import create_notifications_for_group
 from apps.payments.models import Payment
 
 from .ass_payloads import build_ass_qrcode_payload
@@ -96,6 +98,20 @@ def issue_contract(*, contract, issuer=None, actor=None):
             actor=actor,
             target=contract,
             metadata={
+                "contract_number": contract.contract_number,
+                "attestation_reference": contract.attestation_reference,
+                "qr_code_reference": contract.qr_code_reference,
+            },
+        )
+        create_notifications_for_group(
+            partner_group=contract.partner_group,
+            contributor=contract.contributor,
+            notification_type=Notification.Type.CONTRACT_ISSUED,
+            title="Contrat emis",
+            message=f"Contrat {contract.contract_number} emis.",
+            target=contract,
+            metadata={
+                "contract_id": contract.id,
                 "contract_number": contract.contract_number,
                 "attestation_reference": contract.attestation_reference,
                 "qr_code_reference": contract.qr_code_reference,

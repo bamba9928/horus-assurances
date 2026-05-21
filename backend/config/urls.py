@@ -9,6 +9,7 @@ from apps.clients.views import ClientViewSet
 from apps.commissions.views import CommissionRuleViewSet, CommissionViewSet
 from apps.contracts.views import ContractViewSet
 from apps.groups.views import PartnerGroupViewSet
+from apps.notifications.views import NotificationViewSet
 from apps.payments.views import GroupWalletViewSet, PaymentViewSet, WalletTransactionViewSet
 from apps.quotes.views import QuoteViewSet
 from apps.vehicles.views import VehicleViewSet
@@ -30,6 +31,7 @@ router.register("contracts", ContractViewSet, basename="contract")
 router.register("commission-rules", CommissionRuleViewSet, basename="commissionrule")
 router.register("commissions", CommissionViewSet, basename="commission")
 router.register("audit-logs", AuditLogViewSet, basename="auditlog")
+router.register("notifications", NotificationViewSet, basename="notification")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
