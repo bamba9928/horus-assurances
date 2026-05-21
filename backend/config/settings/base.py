@@ -20,6 +20,8 @@ INSTALLED_APPS = [
     "django_filters",
     "apps.groups",
     "apps.accounts",
+    "apps.clients",
+    "apps.vehicles",
 ]
 
 MIDDLEWARE = [

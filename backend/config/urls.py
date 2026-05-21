@@ -4,11 +4,15 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.accounts.views import UserViewSet
+from apps.clients.views import ClientViewSet
 from apps.groups.views import PartnerGroupViewSet
+from apps.vehicles.views import VehicleViewSet
 
 router = DefaultRouter()
 router.register("groups", PartnerGroupViewSet, basename="partnergroup")
 router.register("users", UserViewSet, basename="user")
+router.register("clients", ClientViewSet, basename="client")
+router.register("vehicles", VehicleViewSet, basename="vehicle")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

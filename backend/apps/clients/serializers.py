@@ -1,0 +1,119 @@
+from django.contrib.auth import get_user_model
+from rest_framework import serializers
+
+from .models import Client
+
+User = get_user_model()
+
+
+class ClientSerializer(serializers.ModelSerializer):
+    partner_group_name = serializers.CharField(source="partner_group.name", read_only=True)
+    contributor_username = serializers.CharField(source="contributor.username", read_only=True)
+    display_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Client
+        fields = [
+            "id",
+            "partner_group",
+            "partner_group_name",
+            "contributor",
+            "contributor_username",
+            "created_by",
+            "client_type",
+            "first_name",
+            "last_name",
+            "company_name",
+            "display_name",
+            "email",
+            "phone",
+            "address",
+            "identity_number",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+        validators = []
+        extra_kwargs = {
+            "partner_group": {"required": False},
+            "contributor": {"required": False, "allow_null": True},
+        }
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        instance = self.instance
+
+        partner_group = attrs.get(
+            "partner_group", getattr(instance, "partner_group", None)
+        )
+        contributor = attrs.get("contributor", getattr(instance, "contributor", None))
+
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("Authentification obligatoire.")
+
+        if user.is_general_admin:
+            if partner_group is None:
+                raise serializers.ValidationError(
+                    {"partner_group": "Le groupe est obligatoire."}
+                )
+        elif user.is_group_admin:
+            if partner_group and partner_group != user.partner_group:
+                raise serializers.ValidationError(
+                    {"partner_group": "Un admin de groupe ne peut utiliser que son groupe."}
+                )
+            partner_group = user.partner_group
+            attrs["partner_group"] = partner_group
+        elif user.is_contributor:
+            if partner_group and partner_group != user.partner_group:
+                raise serializers.ValidationError(
+                    {"partner_group": "Un apporteur ne peut utiliser que son groupe."}
+                )
+            if contributor and contributor != user:
+                raise serializers.ValidationError(
+                    {"contributor": "Un apporteur ne peut creer que ses propres clients."}
+                )
+            partner_group = user.partner_group
+            contributor = user
+            attrs["partner_group"] = partner_group
+            attrs["contributor"] = contributor
+        else:
+            raise serializers.ValidationError("Role utilisateur non autorise.")
+
+        if contributor:
+            if contributor.role != User.Role.CONTRIBUTOR:
+                raise serializers.ValidationError(
+                    {"contributor": "Le contributeur doit etre un apporteur."}
+                )
+            if contributor.partner_group_id != partner_group.id:
+                raise serializers.ValidationError(
+                    {"contributor": "L'apporteur doit appartenir au groupe du client."}
+                )
+
+        phone = attrs.get("phone", getattr(instance, "phone", None))
+        if phone and partner_group:
+            duplicate_query = Client.objects.filter(partner_group=partner_group, phone=phone)
+            if instance:
+                duplicate_query = duplicate_query.exclude(pk=instance.pk)
+            if duplicate_query.exists():
+                raise serializers.ValidationError(
+                    {"phone": "Un client avec ce telephone existe deja dans ce groupe."}
+                )
+
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        validated_data["created_by"] = request.user
+        client = Client(**validated_data)
+        client.full_clean()
+        client.save()
+        return client
+
+    def update(self, instance, validated_data):
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.full_clean()
+        instance.save()
+        return instance
