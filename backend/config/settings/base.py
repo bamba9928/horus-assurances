@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "apps.vehicles",
     "apps.quotes",
     "apps.payments",
+    "apps.contracts",
 ]
 
 MIDDLEWARE = [

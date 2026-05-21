@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.accounts.views import UserViewSet
 from apps.clients.views import ClientViewSet
+from apps.contracts.views import ContractViewSet
 from apps.groups.views import PartnerGroupViewSet
 from apps.payments.views import GroupWalletViewSet, PaymentViewSet, WalletTransactionViewSet
 from apps.quotes.views import QuoteViewSet
@@ -23,6 +24,7 @@ router.register(
     basename="wallettransaction",
 )
 router.register("payments", PaymentViewSet, basename="payment")
+router.register("contracts", ContractViewSet, basename="contract")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
