@@ -10,3 +10,11 @@ DATABASES = {
         "NAME": ":memory:",
     }
 }
+
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,  # noqa: F405
+    "DEFAULT_PAGINATION_CLASS": None,
+    "PAGE_SIZE": None,
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {},
+}
