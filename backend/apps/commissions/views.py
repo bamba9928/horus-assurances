@@ -68,7 +68,7 @@ class CommissionViewSet(
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        commission = generate_commission_for_contract(contract=contract)
+        commission = generate_commission_for_contract(contract=contract, actor=request.user)
         return Response(
             CommissionSerializer(commission, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
@@ -82,7 +82,7 @@ class CommissionViewSet(
                 status=status.HTTP_403_FORBIDDEN,
             )
         commission = self.get_object()
-        commission = mark_commission_paid(commission=commission)
+        commission = mark_commission_paid(commission=commission, actor=request.user)
         return Response(CommissionSerializer(commission, context={"request": request}).data)
 
     def _can_use_contract(self, contract):

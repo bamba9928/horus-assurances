@@ -3,6 +3,8 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.ass_api.client import ASSAPIClient
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit_event
 from apps.payments.models import Payment
 
 from .ass_payloads import build_ass_qrcode_payload
@@ -54,7 +56,7 @@ def create_contract_from_payment(*, payment, created_by=None):
     return contract
 
 
-def issue_contract(*, contract, issuer=None):
+def issue_contract(*, contract, issuer=None, actor=None):
     contract = _get_issueable_contract(contract.pk)
 
     if contract.status == Contract.Status.ISSUED:
@@ -87,6 +89,17 @@ def issue_contract(*, contract, issuer=None):
                 "issued_at",
                 "updated_at",
             ]
+        )
+        record_audit_event(
+            action=AuditLog.Action.CONTRACT_ISSUED,
+            partner_group=contract.partner_group,
+            actor=actor,
+            target=contract,
+            metadata={
+                "contract_number": contract.contract_number,
+                "attestation_reference": contract.attestation_reference,
+                "qr_code_reference": contract.qr_code_reference,
+            },
         )
         return contract
 

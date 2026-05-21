@@ -4,6 +4,9 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit_event
+
 from .models import GroupWallet, Payment, WalletTransaction
 
 
@@ -48,6 +51,18 @@ def credit_wallet(*, wallet, amount, created_by=None, idempotency_key="", refere
         created_by=created_by,
     )
     wallet_transaction.full_clean()
+    record_audit_event(
+        action=AuditLog.Action.WALLET_CREDITED,
+        partner_group=wallet.partner_group,
+        actor=created_by,
+        target=wallet_transaction,
+        metadata={
+            "amount": str(amount),
+            "balance_after": str(wallet.balance),
+            "reference": reference,
+            "idempotency_key": idempotency_key,
+        },
+    )
     return wallet_transaction
 
 
@@ -91,6 +106,19 @@ def debit_wallet(
         created_by=created_by,
     )
     wallet_transaction.full_clean()
+    record_audit_event(
+        action=AuditLog.Action.WALLET_DEBITED,
+        partner_group=wallet.partner_group,
+        actor=created_by,
+        target=wallet_transaction,
+        metadata={
+            "amount": str(amount),
+            "balance_after": str(wallet.balance),
+            "reference": reference,
+            "idempotency_key": idempotency_key,
+            "transaction_type": transaction_type,
+        },
+    )
     return wallet_transaction
 
 
@@ -124,4 +152,15 @@ def confirm_payment(*, payment, confirmed_by=None, idempotency_key=""):
     payment.confirmed_at = timezone.now()
     payment.full_clean()
     payment.save(update_fields=["status", "confirmed_at", "wallet_transaction", "updated_at"])
+    record_audit_event(
+        action=AuditLog.Action.PAYMENT_CONFIRMED,
+        partner_group=payment.partner_group,
+        actor=confirmed_by,
+        target=payment,
+        metadata={
+            "amount": str(payment.amount),
+            "method": payment.method,
+            "idempotency_key": idempotency_key,
+        },
+    )
     return payment

@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.accounts.views import UserViewSet
+from apps.audit.views import AuditLogViewSet
 from apps.clients.views import ClientViewSet
 from apps.commissions.views import CommissionRuleViewSet, CommissionViewSet
 from apps.contracts.views import ContractViewSet
@@ -28,6 +29,7 @@ router.register("payments", PaymentViewSet, basename="payment")
 router.register("contracts", ContractViewSet, basename="contract")
 router.register("commission-rules", CommissionRuleViewSet, basename="commissionrule")
 router.register("commissions", CommissionViewSet, basename="commission")
+router.register("audit-logs", AuditLogViewSet, basename="auditlog")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

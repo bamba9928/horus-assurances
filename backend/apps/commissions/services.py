@@ -4,6 +4,8 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.audit.models import AuditLog
+from apps.audit.services import record_audit_event
 from apps.contracts.models import Contract
 
 from .models import Commission, CommissionRule
@@ -40,7 +42,7 @@ def get_applicable_commission_rule(*, partner_group, contributor):
 
 
 @transaction.atomic
-def generate_commission_for_contract(*, contract):
+def generate_commission_for_contract(*, contract, actor=None):
     contract = (
         Contract.objects.select_for_update()
         .select_related("partner_group", "payment", "quote", "contributor")
@@ -100,11 +102,25 @@ def generate_commission_for_contract(*, contract):
         status=Commission.Status.EARNED,
     )
     commission.full_clean()
+    record_audit_event(
+        action=AuditLog.Action.COMMISSION_GENERATED,
+        partner_group=contract.partner_group,
+        actor=actor,
+        target=commission,
+        metadata={
+            "contract_id": contract.id,
+            "base_amount": str(base_amount),
+            "percentage_rate": str(percentage_rate),
+            "fixed_amount": str(fixed_amount),
+            "amount": str(amount),
+            "net_to_pay_amount": str(net_to_pay_amount),
+        },
+    )
     return commission
 
 
 @transaction.atomic
-def mark_commission_paid(*, commission):
+def mark_commission_paid(*, commission, actor=None):
     commission = Commission.objects.select_for_update().get(pk=commission.pk)
     if commission.status == Commission.Status.PAID:
         return commission
@@ -116,4 +132,14 @@ def mark_commission_paid(*, commission):
     commission.paid_at = timezone.now()
     commission.full_clean()
     commission.save(update_fields=["status", "paid_at", "updated_at"])
+    record_audit_event(
+        action=AuditLog.Action.COMMISSION_PAID,
+        partner_group=commission.partner_group,
+        actor=actor,
+        target=commission,
+        metadata={
+            "amount": str(commission.amount),
+            "net_to_pay_amount": str(commission.net_to_pay_amount),
+        },
+    )
     return commission

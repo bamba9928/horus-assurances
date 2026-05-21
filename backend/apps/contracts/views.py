@@ -53,7 +53,7 @@ class ContractViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def issue(self, request, pk=None):
         contract = self.get_object()
-        contract = issue_contract(contract=contract)
+        contract = issue_contract(contract=contract, actor=request.user)
         return Response(ContractSerializer(contract, context={"request": request}).data)
 
     @action(detail=False, methods=["post"], url_path="create-from-payment")
