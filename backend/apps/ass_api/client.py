@@ -165,6 +165,7 @@ class ASSAPIClient:
         started_at = time.perf_counter()
         response_payload = {}
         http_status_code = None
+        business_error_message = ""
 
         try:
             with httpx.Client(
@@ -176,6 +177,7 @@ class ASSAPIClient:
                 http_status_code = response.status_code
                 response.raise_for_status()
                 response_payload = self._safe_response_json(response)
+                business_error_message = self._business_error_message(response_payload)
         except httpx.HTTPError as exc:
             duration_ms = self._duration_ms(started_at)
             response = getattr(exc, "response", None)
@@ -200,13 +202,21 @@ class ASSAPIClient:
             partner_group=partner_group,
             contract=contract,
             endpoint=endpoint,
-            status=ASSAPICallLog.Status.SUCCESS,
+            status=(
+                ASSAPICallLog.Status.ERROR
+                if business_error_message
+                else ASSAPICallLog.Status.SUCCESS
+            ),
             http_status_code=http_status_code,
             request_payload=payload,
             response_payload=response_payload,
-            error_message="",
+            error_message=sanitize_error_message(business_error_message),
             duration_ms=duration_ms,
         )
+        if business_error_message:
+            raise serializers.ValidationError(
+                {"ass_api": sanitize_error_message(business_error_message)}
+            )
         return response_payload
 
     def _log_call(
@@ -241,6 +251,29 @@ class ASSAPIClient:
             return response.json()
         except ValueError:
             return {"raw": response.text}
+
+    @staticmethod
+    def _business_error_message(response_payload):
+        if not isinstance(response_payload, dict):
+            return ""
+
+        status_key = "operationStatus"
+        operation_status = response_payload.get(status_key)
+        if operation_status in (None, ""):
+            status_key = "status"
+            operation_status = response_payload.get(status_key)
+        if operation_status in (None, ""):
+            return ""
+        if str(operation_status).strip().upper() == "SUCCESS":
+            return ""
+
+        operation_message = (
+            response_payload.get("operationMessage")
+            or response_payload.get("message")
+            or response_payload.get("error")
+            or "La reponse ASS indique un echec metier."
+        )
+        return f"{status_key}={operation_status}: {operation_message}"
 
     @staticmethod
     def _duration_ms(started_at):

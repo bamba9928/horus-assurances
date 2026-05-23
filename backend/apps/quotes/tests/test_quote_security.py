@@ -311,6 +311,71 @@ def test_calculate_sets_quote_amounts_without_external_call(quote_context):
 
 
 @pytest.mark.django_db
+def test_ass_payload_preview_returns_product_payload_without_persisting(
+    quote_context,
+):
+    client = APIClient()
+    client.force_authenticate(quote_context["contributor_a"])
+
+    response = client.post(
+        f"/api/v1/quotes/{quote_context['quote_a'].id}/ass-payload-preview/",
+        {
+            "product_type": Quote.ProductType.MOTO,
+            "duration": 6,
+            "fees_amount": "3000.00",
+            "coverage_options": [],
+            "ass_product_data": {
+                "cylindre": 126,
+                "usage": "NON_COMMERCIAL",
+            },
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["preview_only"] is True
+    assert response.data["operation"] == "rc_calculation"
+    assert response.data["product_type"] == Quote.ProductType.MOTO
+    assert response.data["ass_endpoint"] == "/api/v1/partner/rc.moto"
+    assert response.data["ass_method"] == "calculate_moto_rc"
+    assert response.data["payload"]["cylindre"] == 126
+    assert response.data["payload"]["usage"] == "NON_COMMERCIAL"
+
+    quote_context["quote_a"].refresh_from_db()
+    assert quote_context["quote_a"].product_type == Quote.ProductType.AUTO
+    assert quote_context["quote_a"].ass_product_data == {}
+
+
+@pytest.mark.django_db
+def test_ass_payload_preview_rejects_missing_product_data(quote_context):
+    client = APIClient()
+    client.force_authenticate(quote_context["contributor_a"])
+
+    response = client.post(
+        f"/api/v1/quotes/{quote_context['quote_a'].id}/ass-payload-preview/",
+        {"product_type": Quote.ProductType.MOTO},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "ass_product_data" in response.data
+
+
+@pytest.mark.django_db
+def test_contributor_cannot_preview_quote_from_another_contributor(quote_context):
+    client = APIClient()
+    client.force_authenticate(quote_context["contributor_a"])
+
+    response = client.post(
+        f"/api/v1/quotes/{quote_context['quote_a2'].id}/ass-payload-preview/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
 def test_contributor_cannot_calculate_quote_from_another_contributor(quote_context):
     client = APIClient()
     client.force_authenticate(quote_context["contributor_a"])

@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from apps.clients.models import Client
 from apps.groups.models import PartnerGroup
-from apps.quotes.ass_payloads import build_ass_rc_payload
+from apps.quotes.ass_payloads import build_ass_rc_payload, build_ass_rc_payload_for_product
 from apps.quotes.models import Quote
 from apps.quotes.services import calculate_quote_with_ass, extract_ass_rc_amounts
 from apps.vehicles.models import Vehicle
@@ -32,6 +32,70 @@ class FakeASSClient:
             }
         )
         return self.response_payload
+
+
+class RecordingASSClient:
+    def __init__(self, response_payload=None):
+        self.response_payload = response_payload or {
+            "data": {
+                "responsabiliteCivile": "18688",
+                "primeNette": "25000",
+                "cout_police": "3000",
+                "primeTTC": "28000",
+            }
+        }
+        self.calls = []
+
+    def _record(self, method_name, payload, *, partner_group=None, contract=None):
+        self.calls.append(
+            {
+                "method": method_name,
+                "payload": payload,
+                "partner_group": partner_group,
+                "contract": contract,
+            }
+        )
+        return self.response_payload
+
+    def calculate_rc(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "calculate_rc",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_moto_rc(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "calculate_moto_rc",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_fleet_rc(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "calculate_fleet_rc",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_trailer_rc(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "calculate_trailer_rc",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_garage_rc(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "calculate_garage_rc",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
 
 
 @pytest.fixture
@@ -109,6 +173,39 @@ def test_build_ass_rc_payload_uses_quote_vehicle_data(ass_quote_context):
     }
 
 
+@pytest.mark.django_db
+def test_build_ass_rc_payload_for_moto_uses_product_data(ass_quote_context):
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        product_type=Quote.ProductType.MOTO,
+        ass_product_data={
+            "cylindre": 126,
+            "usage": "NON_COMMERCIAL",
+        },
+    )
+    ass_quote_context["quote"].refresh_from_db()
+
+    payload = build_ass_rc_payload_for_product(ass_quote_context["quote"])
+
+    assert payload["cylindre"] == 126
+    assert payload["usage"] == "NON_COMMERCIAL"
+    assert payload["nombrePlace"] == 5
+    assert payload["genre"] == "VP"
+
+
+@pytest.mark.django_db
+def test_build_ass_rc_payload_for_trailer_requires_reference_vehicle(
+    ass_quote_context,
+):
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        product_type=Quote.ProductType.TRAILER,
+        ass_product_data={},
+    )
+    ass_quote_context["quote"].refresh_from_db()
+
+    with pytest.raises(serializers.ValidationError):
+        build_ass_rc_payload_for_product(ass_quote_context["quote"])
+
+
 def test_extract_ass_rc_amounts_accepts_nested_ass_response():
     amounts = extract_ass_rc_amounts(
         {
@@ -181,6 +278,52 @@ def test_calculate_quote_with_ass_updates_amounts_and_status(ass_quote_context):
     assert quote.coverage_options == [1, 2, 4]
     assert fake_client.calls[0]["partner_group"] == ass_quote_context["group"]
     assert fake_client.calls[0]["payload"]["garanties"] == [1, 2, 4]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("product_type", "method_name", "ass_product_data"),
+    [
+        (Quote.ProductType.AUTO, "calculate_rc", {}),
+        (
+            Quote.ProductType.MOTO,
+            "calculate_moto_rc",
+            {"cylindre": 126, "usage": "NON_COMMERCIAL"},
+        ),
+        (Quote.ProductType.FLEET, "calculate_fleet_rc", {}),
+        (
+            Quote.ProductType.TRAILER,
+            "calculate_trailer_rc",
+            {"referenceVehicule": "DK-TRACT-001"},
+        ),
+        (
+            Quote.ProductType.GARAGE,
+            "calculate_garage_rc",
+            {"nombreCarte": 2},
+        ),
+    ],
+)
+def test_calculate_quote_with_ass_routes_rc_by_product_type(
+    ass_quote_context,
+    product_type,
+    method_name,
+    ass_product_data,
+):
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        product_type=product_type,
+        ass_product_data=ass_product_data,
+    )
+    ass_quote_context["quote"].refresh_from_db()
+    ass_client = RecordingASSClient()
+
+    quote = calculate_quote_with_ass(
+        quote=ass_quote_context["quote"],
+        client=ass_client,
+    )
+
+    assert quote.status == Quote.Status.CALCULATED
+    assert ass_client.calls[0]["method"] == method_name
+    assert ass_client.calls[0]["partner_group"] == ass_quote_context["group"]
 
 
 @pytest.mark.django_db

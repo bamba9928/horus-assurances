@@ -21,6 +21,14 @@ QRCODE_METHOD_BY_PRODUCT_TYPE = {
     "GARAGE": "request_garage_qrcode",
 }
 
+QRCODE_ENDPOINT_BY_PRODUCT_TYPE = {
+    "AUTO": "/api/v1/partner/qrcode.request",
+    "MOTO": "/api/v1/partner/moto.request",
+    "FLEET": "/api/v1/partner/qrcode.flotte.request",
+    "TRAILER": "/api/v1/partner/remorque.qrcode.request",
+    "GARAGE": "/api/v1/partner/garage.request",
+}
+
 
 class ASSContractIssuer:
     def __init__(self, client=None):
@@ -140,6 +148,24 @@ def issue_contract(*, contract, issuer=None, actor=None):
         return contract
 
 
+def build_contract_ass_payload_preview(*, contract):
+    product_type = contract.quote.product_type
+    return {
+        "preview_only": True,
+        "operation": "qrcode_issue",
+        "product_type": product_type,
+        "ass_method": QRCODE_METHOD_BY_PRODUCT_TYPE.get(
+            product_type,
+            "request_qrcode",
+        ),
+        "ass_endpoint": QRCODE_ENDPOINT_BY_PRODUCT_TYPE.get(
+            product_type,
+            "/api/v1/partner/qrcode.request",
+        ),
+        "payload": build_ass_qrcode_payload_for_product(contract),
+    }
+
+
 def _get_issueable_contract(contract_id):
     with transaction.atomic():
         contract = (
@@ -181,6 +207,8 @@ def _apply_ass_response(contract, ass_response):
         (
             "attestation_reference",
             "attestationReference",
+            "attestationNumber",
+            "numeroAttestation",
             "referenceAttestation",
             "reference_attestation",
             "attestation",
@@ -205,6 +233,8 @@ def _apply_ass_response(contract, ass_response):
             "attestation_url",
             "attestationLink",
             "attestation_link",
+            "linkAttestation",
+            "link_attestation",
             "urlAttestation",
             "lienAttestation",
             "lienAttestationPdf",
@@ -222,6 +252,8 @@ def _apply_ass_response(contract, ass_response):
             "carte_brune_url",
             "carteBruneLink",
             "carte_brune_link",
+            "linkCarteBrune",
+            "link_carte_brune",
             "urlCarteBrune",
             "lienCarteBrune",
             "lienCarteBrunePdf",
@@ -281,4 +313,4 @@ def _find_value(value, keys):
 
 
 def _normalize_key(key):
-    return str(key).replace("_", "").replace("-", "").lower()
+    return str(key).strip().replace("_", "").replace("-", "").replace(" ", "").lower()

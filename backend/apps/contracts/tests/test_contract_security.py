@@ -386,6 +386,52 @@ def test_issue_contract_is_idempotent(contract_context, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_ass_payload_preview_returns_qrcode_payload_without_issuing(contract_context):
+    Quote.objects.filter(pk=contract_context["quote_a"].pk).update(
+        product_type=Quote.ProductType.MOTO,
+        ass_product_data={
+            "cylindre": 126,
+            "usage": "NON_COMMERCIAL",
+        },
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.post(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/ass-payload-preview/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["preview_only"] is True
+    assert response.data["operation"] == "qrcode_issue"
+    assert response.data["product_type"] == Quote.ProductType.MOTO
+    assert response.data["ass_endpoint"] == "/api/v1/partner/moto.request"
+    assert response.data["ass_method"] == "request_moto_qrcode"
+    assert response.data["payload"]["vehicule"]["cylindre"] == 126
+    assert response.data["payload"]["vehicule"]["usage"] == "NON_COMMERCIAL"
+
+    contract_context["contract_a"].refresh_from_db()
+    assert contract_context["contract_a"].status == Contract.Status.READY_TO_ISSUE
+    assert contract_context["contract_a"].contract_number is None
+
+
+@pytest.mark.django_db
+def test_contributor_cannot_preview_contract_from_another_contributor(contract_context):
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.post(
+        f"/api/v1/contracts/{contract_context['contract_b'].id}/ass-payload-preview/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
 def test_issue_contract_rejects_unconfirmed_payment(contract_context):
     Payment.objects.filter(pk=contract_context["confirmed_payment_a"].pk).update(
         status=Payment.Status.PENDING,

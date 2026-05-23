@@ -4,7 +4,11 @@ from rest_framework.response import Response
 
 from .models import Contract
 from .serializers import ContractFromPaymentSerializer, ContractSerializer
-from .services import create_contract_from_payment, issue_contract
+from .services import (
+    build_contract_ass_payload_preview,
+    create_contract_from_payment,
+    issue_contract,
+)
 
 
 class ContractViewSet(viewsets.ModelViewSet):
@@ -60,6 +64,14 @@ class ContractViewSet(viewsets.ModelViewSet):
         contract = self.get_object()
         contract = issue_contract(contract=contract, actor=request.user)
         return Response(ContractSerializer(contract, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="ass-payload-preview")
+    def ass_payload_preview(self, request, pk=None):
+        contract = self.get_object()
+        return Response(
+            build_contract_ass_payload_preview(contract=contract),
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=["post"], url_path="create-from-payment")
     def create_from_payment(self, request):

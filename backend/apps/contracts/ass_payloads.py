@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+from rest_framework import serializers
+
 
 def build_ass_qrcode_payload(contract):
     quote = contract.quote
@@ -43,7 +45,12 @@ def build_ass_fleet_qrcode_payload(contract):
     client = contract.client
     return _drop_none(
         {
-            "referenceFlotte": f"HORUS-FLEET-{contract.id:06d}",
+            "referenceFlotte": _product_data_value(
+                quote,
+                "referenceFlotte",
+                "reference_flotte",
+                default=f"HORUS-FLEET-{contract.id:06d}",
+            ),
             "dateEffet": _date_or_none(quote.effective_date),
             "duree": quote.duration,
             "periodicite": quote.periodicity,
@@ -68,10 +75,16 @@ def build_ass_fleet_qrcode_payload(contract):
 
 def build_ass_trailer_qrcode_payload(contract):
     base_payload = _flat_qrcode_payload(contract)
+    quote = contract.quote
     vehicle = contract.vehicle
     base_payload.update(
         {
-            "referenceVehicule": vehicle.registration_number,
+            "referenceVehicule": _product_data_value(
+                quote,
+                "referenceVehicule",
+                "reference_vehicule",
+                default=vehicle.registration_number,
+            ),
             "immatriculation": vehicle.registration_number,
             "marque": vehicle.brand,
             "modele": vehicle.model,
@@ -86,7 +99,12 @@ def build_ass_garage_qrcode_payload(contract):
     base_payload = _flat_qrcode_payload(contract)
     base_payload.update(
         {
-            "nombreCarte": 1,
+            "nombreCarte": _product_data_value(
+                quote,
+                "nombreCarte",
+                "nombre_carte",
+                default=1,
+            ),
             "immatriculation": vehicle.registration_number,
             "genre": vehicle.genre,
             "valeurNeuve": _decimal_or_none(vehicle.new_value),
@@ -98,8 +116,10 @@ def build_ass_garage_qrcode_payload(contract):
 
 
 def build_ass_moto_qrcode_payload(contract):
+    quote = contract.quote
     payload = _flat_qrcode_payload(contract)
-    payload["vehicule"] = _vehicle_payload(contract.vehicle)
+    payload["vehicule"] = _moto_vehicle_payload(contract)
+    payload["garanties"] = quote.coverage_options or []
     return _drop_none(payload)
 
 
@@ -151,6 +171,48 @@ def _vehicle_payload(vehicle):
             "dateMiseCirculation": _date_or_none(vehicle.first_registration_date),
         }
     )
+
+
+def _moto_vehicle_payload(contract):
+    payload = _vehicle_payload(contract.vehicle)
+    payload.update(
+        {
+            "cylindre": _required_product_data(
+                contract.quote,
+                "cylindre",
+                "cylinder",
+                label="cylindre",
+            ),
+            "usage": _required_product_data(
+                contract.quote,
+                "usage",
+                label="usage",
+            ),
+        }
+    )
+    return _drop_none(payload)
+
+
+def _required_product_data(quote, *keys, label):
+    value = _product_data_value(quote, *keys)
+    if value in (None, ""):
+        raise serializers.ValidationError(
+            {"ass_product_data": f"{label} est obligatoire pour ce produit ASS."}
+        )
+    return value
+
+
+def _product_data_value(quote, *keys, default=None):
+    data = quote.ass_product_data or {}
+    if not isinstance(data, dict):
+        raise serializers.ValidationError(
+            {"ass_product_data": "Les donnees produit ASS doivent etre un objet JSON."}
+        )
+    for key in keys:
+        value = data.get(key)
+        if value not in (None, ""):
+            return value
+    return default
 
 
 def _payment_reference(contract):

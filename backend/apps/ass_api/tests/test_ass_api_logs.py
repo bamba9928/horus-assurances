@@ -3,6 +3,7 @@ import json
 import httpx
 import pytest
 from django.test import override_settings
+from rest_framework import serializers
 
 from apps.ass_api.client import ASSAPIClient
 from apps.ass_api.models import ASSAPICallLog
@@ -200,6 +201,54 @@ def test_failed_ass_call_creates_sanitized_log():
     assert "request-api-key" not in serialized_log
     assert "response-password-secret" not in serialized_log
     assert "response-token-secret" not in serialized_log
+    assert REDACTED in serialized_log
+
+
+@pytest.mark.django_db
+@override_settings(
+    ASS_BASE_URL="https://ass.example.test",
+    ASS_USERNAME="ass-user",
+    ASS_PASSWORD="ass-password-secret",
+    ASS_TIMEOUT_SECONDS=5,
+)
+def test_ass_business_error_response_creates_error_log():
+    group = PartnerGroup.objects.create(name="ASS Groupe C", slug="ass-groupe-c")
+
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "operationStatus": "ERROR",
+                "operationMessage": "Mot de passe password=response-password-secret",
+            },
+        )
+
+    client = ASSAPIClient(transport=httpx.MockTransport(handler))
+
+    with pytest.raises(serializers.ValidationError):
+        client.calculate_rc(
+            {
+                "puissanceFiscale": 8,
+                "password": "request-password-secret",
+            },
+            partner_group=group,
+        )
+
+    log = ASSAPICallLog.objects.get()
+    serialized_log = serialized(
+        {
+            "request_payload": log.request_payload,
+            "response_payload": log.response_payload,
+            "error_message": log.error_message,
+        }
+    )
+    assert log.partner_group == group
+    assert log.endpoint == "/api/v1/partner/rc.request"
+    assert log.status == ASSAPICallLog.Status.ERROR
+    assert log.http_status_code == 200
+    assert "ass-password-secret" not in serialized_log
+    assert "request-password-secret" not in serialized_log
+    assert "response-password-secret" not in serialized_log
     assert REDACTED in serialized_log
 
 

@@ -3,8 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Quote
-from .serializers import QuoteCalculateSerializer, QuoteSerializer
-from .services import calculate_quote_with_ass
+from .serializers import (
+    QuoteASSPayloadPreviewSerializer,
+    QuoteCalculateSerializer,
+    QuoteSerializer,
+)
+from .services import build_quote_ass_payload_preview, calculate_quote_with_ass
 
 
 class QuoteViewSet(viewsets.ModelViewSet):
@@ -78,3 +82,22 @@ class QuoteViewSet(viewsets.ModelViewSet):
         quote.save()
 
         return Response(QuoteSerializer(quote, context={"request": request}).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="ass-payload-preview")
+    def ass_payload_preview(self, request, pk=None):
+        quote = self.get_object()
+        serializer = QuoteASSPayloadPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        preview_values = serializer.validated_data.copy()
+        rc_discount_amount = preview_values.pop("rc_discount_amount", 0)
+
+        for field, value in preview_values.items():
+            setattr(quote, field, value)
+
+        return Response(
+            build_quote_ass_payload_preview(
+                quote=quote,
+                rc_discount_amount=rc_discount_amount,
+            ),
+            status=status.HTTP_200_OK,
+        )

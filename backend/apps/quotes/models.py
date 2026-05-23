@@ -71,6 +71,7 @@ class Quote(models.Model):
     effective_date = models.DateField(null=True, blank=True)
     expiration_date = models.DateField(null=True, blank=True)
     coverage_options = models.JSONField(default=list, blank=True)
+    ass_product_data = models.JSONField(default=dict, blank=True)
     civil_liability_amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -116,6 +117,13 @@ class Quote(models.Model):
         if self.client_id and self.vehicle_id and self.vehicle.client_id != self.client_id:
             raise ValidationError(
                 {"vehicle": "Le vehicule doit etre rattache au client du devis."}
+            )
+
+        if self.ass_product_data is None:
+            self.ass_product_data = {}
+        if not isinstance(self.ass_product_data, dict):
+            raise ValidationError(
+                {"ass_product_data": "Les donnees produit ASS doivent etre un objet JSON."}
             )
 
         if self.contributor_id:

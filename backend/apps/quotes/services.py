@@ -5,10 +5,26 @@ from rest_framework import serializers
 
 from apps.ass_api.client import ASSAPIClient
 
-from .ass_payloads import build_ass_rc_payload
+from .ass_payloads import build_ass_rc_payload_for_product
 from .models import Quote
 
 MONEY_QUANTIZER = Decimal("0.01")
+
+ASS_RC_METHOD_BY_PRODUCT_TYPE = {
+    Quote.ProductType.AUTO: "calculate_rc",
+    Quote.ProductType.MOTO: "calculate_moto_rc",
+    Quote.ProductType.FLEET: "calculate_fleet_rc",
+    Quote.ProductType.TRAILER: "calculate_trailer_rc",
+    Quote.ProductType.GARAGE: "calculate_garage_rc",
+}
+
+ASS_RC_ENDPOINT_BY_PRODUCT_TYPE = {
+    Quote.ProductType.AUTO: "/api/v1/partner/rc.request",
+    Quote.ProductType.MOTO: "/api/v1/partner/rc.moto",
+    Quote.ProductType.FLEET: "/api/v1/partner/rc.flotte.request",
+    Quote.ProductType.TRAILER: "/api/v1/partner/remorque.rc.request",
+    Quote.ProductType.GARAGE: "/api/v1/partner/rc.garage",
+}
 
 ASS_RC_RESPONSE_KEYS = {
     "civil_liability_amount": (
@@ -71,8 +87,15 @@ def calculate_quote_with_ass(
         setattr(quote, field, value)
 
     ass_client = client or ASSAPIClient()
-    response_payload = ass_client.calculate_rc(
-        build_ass_rc_payload(quote, rc_discount_amount=rc_discount_amount),
+    method_name = ASS_RC_METHOD_BY_PRODUCT_TYPE.get(
+        quote.product_type,
+        "calculate_rc",
+    )
+    response_payload = getattr(ass_client, method_name)(
+        build_ass_rc_payload_for_product(
+            quote,
+            rc_discount_amount=rc_discount_amount,
+        ),
         partner_group=quote.partner_group,
     )
     amounts = extract_ass_rc_amounts(
@@ -89,6 +112,7 @@ def calculate_quote_with_ass(
     quote.save(
         update_fields=[
             "coverage_options",
+            "ass_product_data",
             "periodicity",
             "duration",
             "civil_liability_amount",
@@ -100,6 +124,31 @@ def calculate_quote_with_ass(
         ]
     )
     return quote
+
+
+def build_quote_ass_payload_preview(
+    *,
+    quote,
+    rc_discount_amount=Decimal("0.00"),
+):
+    product_type = quote.product_type
+    return {
+        "preview_only": True,
+        "operation": "rc_calculation",
+        "product_type": product_type,
+        "ass_method": ASS_RC_METHOD_BY_PRODUCT_TYPE.get(
+            product_type,
+            "calculate_rc",
+        ),
+        "ass_endpoint": ASS_RC_ENDPOINT_BY_PRODUCT_TYPE.get(
+            product_type,
+            "/api/v1/partner/rc.request",
+        ),
+        "payload": build_ass_rc_payload_for_product(
+            quote,
+            rc_discount_amount=rc_discount_amount,
+        ),
+    }
 
 
 def extract_ass_rc_amounts(response_payload, *, default_fees_amount=Decimal("0.00")):

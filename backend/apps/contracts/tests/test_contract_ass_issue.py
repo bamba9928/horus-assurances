@@ -1,9 +1,14 @@
+from io import StringIO
 from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import override_settings
 from rest_framework import serializers
 
+from apps.ass_api.sanitizers import REDACTED
 from apps.clients.models import Client
 from apps.contracts.ass_payloads import (
     build_ass_qrcode_payload,
@@ -207,8 +212,17 @@ def test_ass_contract_issuer_routes_qrcode_by_product_type(
     product_type,
     method_name,
 ):
+    ass_product_data = {}
+    if product_type == Quote.ProductType.MOTO:
+        ass_product_data = {"cylindre": 126, "usage": "NON_COMMERCIAL"}
+    if product_type == Quote.ProductType.TRAILER:
+        ass_product_data = {"referenceVehicule": "DK-TRACT-001"}
+    if product_type == Quote.ProductType.GARAGE:
+        ass_product_data = {"nombreCarte": 2}
+
     Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
-        product_type=product_type
+        product_type=product_type,
+        ass_product_data=ass_product_data,
     )
     ass_contract_context["contract"].refresh_from_db()
     ass_client = RecordingASSClient()
@@ -220,6 +234,53 @@ def test_ass_contract_issuer_routes_qrcode_by_product_type(
     assert ass_client.calls[0]["method"] == method_name
     assert ass_client.calls[0]["partner_group"] == ass_contract_context["group"]
     assert ass_client.calls[0]["contract"] == ass_contract_context["contract"]
+
+
+@pytest.mark.django_db
+def test_build_ass_qrcode_payload_for_moto_uses_product_data(ass_contract_context):
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        product_type=Quote.ProductType.MOTO,
+        ass_product_data={"cylindre": 126, "usage": "NON_COMMERCIAL"},
+    )
+    ass_contract_context["contract"].refresh_from_db()
+
+    payload = build_ass_qrcode_payload_for_product(ass_contract_context["contract"])
+
+    assert payload["vehicule"]["cylindre"] == 126
+    assert payload["vehicule"]["usage"] == "NON_COMMERCIAL"
+    assert payload["garanties"] == [1, 2, 4]
+
+
+@pytest.mark.django_db
+def test_build_ass_qrcode_payload_for_trailer_uses_product_reference(
+    ass_contract_context,
+):
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        product_type=Quote.ProductType.TRAILER,
+        ass_product_data={"referenceVehicule": "DK-TRACT-001"},
+    )
+    ass_contract_context["contract"].refresh_from_db()
+
+    payload = build_ass_qrcode_payload_for_product(ass_contract_context["contract"])
+
+    assert payload["referenceVehicule"] == "DK-TRACT-001"
+    assert payload["immatriculation"] == "DK-ASS-001"
+
+
+@pytest.mark.django_db
+def test_build_ass_qrcode_payload_for_garage_uses_card_count(
+    ass_contract_context,
+):
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        product_type=Quote.ProductType.GARAGE,
+        ass_product_data={"nombreCarte": 2},
+    )
+    ass_contract_context["contract"].refresh_from_db()
+
+    payload = build_ass_qrcode_payload_for_product(ass_contract_context["contract"])
+
+    assert payload["nombreCarte"] == 2
+    assert payload["genre"] == "VP"
 
 
 @pytest.mark.django_db
@@ -278,6 +339,29 @@ def test_issue_contract_extracts_diotali_links_from_ass_response(ass_contract_co
     assert contract.qr_code_reference is None
     assert contract.attestation_url == "https://diotali.example.test/attestation.pdf"
     assert contract.carte_brune_url == "https://diotali.example.test/carte-brune.pdf"
+
+
+@pytest.mark.django_db
+def test_issue_contract_extracts_documented_diotali_link_keys(ass_contract_context):
+    issuer = FakeIssuer(
+        response={
+            "data": {
+                "referenceExterne": "WAVE-TRX-001",
+                "attestationNumber": "SN00JTEST",
+                "linkAttestation": "https://diotali.example.test/attestation/SN00JTEST",
+                " linkCarteBrune ": "https://diotali.example.test/carte/SN00JTEST",
+            },
+        }
+    )
+
+    contract = issue_contract(
+        contract=ass_contract_context["contract"],
+        issuer=issuer,
+    )
+
+    assert contract.attestation_reference == "SN00JTEST"
+    assert contract.attestation_url == "https://diotali.example.test/attestation/SN00JTEST"
+    assert contract.carte_brune_url == "https://diotali.example.test/carte/SN00JTEST"
 
 
 @pytest.mark.django_db
@@ -350,5 +434,97 @@ def test_empty_ass_response_does_not_mark_contract_as_issued(ass_contract_contex
 
     ass_contract_context["contract"].refresh_from_db()
     assert issuer.calls == [ass_contract_context["contract"].id]
+    assert ass_contract_context["contract"].status == Contract.Status.READY_TO_ISSUE
+    assert ass_contract_context["contract"].contract_number is None
+
+
+@pytest.mark.django_db
+def test_validate_ass_sandbox_issue_command_previews_without_external_call(
+    ass_contract_context,
+    monkeypatch,
+):
+    class FailingCommandIssuer:
+        def issue(self, contract):
+            raise AssertionError("external ASS call should not be made")
+
+    monkeypatch.setattr(
+        "apps.contracts.management.commands.validate_ass_sandbox_issue.ASSContractIssuer",
+        FailingCommandIssuer,
+    )
+    output = StringIO()
+
+    call_command(
+        "validate_ass_sandbox_issue",
+        ass_contract_context["contract"].id,
+        stdout=output,
+    )
+
+    command_output = output.getvalue()
+    assert "ass_payload_preview" in command_output
+    assert "/api/v1/partner/qrcode.request" in command_output
+    assert "Aucun appel externe ASS effectue" in command_output
+
+
+@pytest.mark.django_db
+@override_settings(ASS_BASE_URL="https://manager.example.com")
+def test_validate_ass_sandbox_issue_command_blocks_non_sandbox_url(
+    ass_contract_context,
+    monkeypatch,
+):
+    class FailingCommandIssuer:
+        def issue(self, contract):
+            raise AssertionError("external ASS call should not be made")
+
+    monkeypatch.setattr(
+        "apps.contracts.management.commands.validate_ass_sandbox_issue.ASSContractIssuer",
+        FailingCommandIssuer,
+    )
+
+    with pytest.raises(CommandError, match="ne ressemble pas a une sandbox"):
+        call_command(
+            "validate_ass_sandbox_issue",
+            ass_contract_context["contract"].id,
+            "--confirm-external-ass-call",
+            stdout=StringIO(),
+        )
+
+
+@pytest.mark.django_db
+@override_settings(ASS_BASE_URL="https://kiiraytest.example.com")
+def test_validate_ass_sandbox_issue_command_calls_ass_without_persisting(
+    ass_contract_context,
+    monkeypatch,
+):
+    class FakeCommandIssuer:
+        calls = []
+
+        def issue(self, contract):
+            self.__class__.calls.append(contract.id)
+            return {
+                "contractNumber": "ASS-SANDBOX-001",
+                "password": "response-password-secret",
+                "operationStatus": "SUCCESS",
+            }
+
+    monkeypatch.setattr(
+        "apps.contracts.management.commands.validate_ass_sandbox_issue.ASSContractIssuer",
+        FakeCommandIssuer,
+    )
+    output = StringIO()
+
+    call_command(
+        "validate_ass_sandbox_issue",
+        ass_contract_context["contract"].id,
+        "--confirm-external-ass-call",
+        stdout=output,
+    )
+
+    ass_contract_context["contract"].refresh_from_db()
+    command_output = output.getvalue()
+    assert FakeCommandIssuer.calls == [ass_contract_context["contract"].id]
+    assert "ASS-SANDBOX-001" in command_output
+    assert "response-password-secret" not in command_output
+    assert REDACTED in command_output
+    assert '"persisted_contract_issue": false' in command_output
     assert ass_contract_context["contract"].status == Contract.Status.READY_TO_ISSUE
     assert ass_contract_context["contract"].contract_number is None

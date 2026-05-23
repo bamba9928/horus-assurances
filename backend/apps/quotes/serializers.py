@@ -14,6 +14,7 @@ class QuoteSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     contributor_username = serializers.CharField(source="contributor.username", read_only=True)
+    ass_product_data = serializers.DictField(required=False)
 
     class Meta:
         model = Quote
@@ -36,6 +37,7 @@ class QuoteSerializer(serializers.ModelSerializer):
             "effective_date",
             "expiration_date",
             "coverage_options",
+            "ass_product_data",
             "civil_liability_amount",
             "premium_amount",
             "fees_amount",
@@ -167,6 +169,7 @@ class QuoteCalculateSerializer(serializers.Serializer):
     )
     duration = serializers.IntegerField(required=False, min_value=1, max_value=120)
     coverage_options = serializers.JSONField(required=False)
+    ass_product_data = serializers.DictField(required=False)
     civil_liability_amount = serializers.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -179,6 +182,35 @@ class QuoteCalculateSerializer(serializers.Serializer):
         required=False,
         min_value=0,
     )
+    fees_amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        required=False,
+        min_value=0,
+    )
+
+
+class QuoteASSPayloadPreviewSerializer(serializers.Serializer):
+    rc_discount_amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        required=False,
+        min_value=0,
+        default=0,
+    )
+    product_type = serializers.ChoiceField(
+        choices=Quote.ProductType.choices,
+        required=False,
+    )
+    periodicity = serializers.ChoiceField(
+        choices=Quote.Periodicity.choices,
+        required=False,
+    )
+    duration = serializers.IntegerField(required=False, min_value=1, max_value=120)
+    effective_date = serializers.DateField(required=False, allow_null=True)
+    expiration_date = serializers.DateField(required=False, allow_null=True)
+    coverage_options = serializers.JSONField(required=False)
+    ass_product_data = serializers.DictField(required=False)
     fees_amount = serializers.DecimalField(
         max_digits=14,
         decimal_places=2,
