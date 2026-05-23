@@ -153,6 +153,15 @@ def ass_quote_context():
 
 @pytest.mark.django_db
 def test_build_ass_rc_payload_uses_quote_vehicle_data(ass_quote_context):
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        ass_product_data={
+            "garantiesOptPT": "OPTION_1",
+            "garantiesOptAR": "500000",
+            "garantiesOptAS": "OPTION_1",
+        }
+    )
+    ass_quote_context["quote"].refresh_from_db()
+
     payload = build_ass_rc_payload(
         ass_quote_context["quote"],
         rc_discount_amount=Decimal("500.00"),
@@ -168,6 +177,9 @@ def test_build_ass_rc_payload_uses_quote_vehicle_data(ass_quote_context):
         "valeurNeuve": 9000900,
         "valeurActuelle": 3500000,
         "garanties": [1, 2],
+        "garantiesOptPT": "OPTION_1",
+        "garantiesOptAR": "500000",
+        "garantiesOptAS": "OPTION_1",
         "cout_police": 3000,
         "remise_rc": 500,
     }

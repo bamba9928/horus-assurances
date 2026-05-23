@@ -1,0 +1,21 @@
+{
+  "status_code": 200,
+  "body": {
+    "Cedeao": "300",
+    "CoutPolice": "3000",
+    "Fga": "246",
+    "PrimeAG": "0",
+    "PrimeRC": "9860",
+    "PrimeTotale": "15206",
+    "Reduction": "0",
+    "Taxe": "1800",
+    "attestationNumber": "SN004FTNNGK",
+    "dateExpiration": "2027-05-23",
+    "linkAttestation": "https://aas.diotali.com/#/attestation/SN004FTNNGK",
+    "linkCarteBrune": "https://aas.diotali.com/#/carte-brune/SN004FTNNGK",
+    "operationMessage": "Operation effectuee avec succes.",
+    "operationStatus": "SUCCESS",
+    "referenceExterne": "ASS-SANDBOX-LOCAL-TRX",
+    "secureKey": "***REDACTED***"
+  }
+}

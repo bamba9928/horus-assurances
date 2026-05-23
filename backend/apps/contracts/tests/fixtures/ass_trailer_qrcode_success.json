@@ -1,0 +1,13 @@
+{
+  "status_code": 201,
+  "body": {
+    "attestationNumber": "SN004NFKDEI",
+    "dateExpiration": "2026-11-22",
+    "linkAttestation": "https://aas.diotali.com/#/attestation/SN004NFKDEI",
+    "linkCarteBrune": "https://aas.diotali.com/#/carte-brune/SN004NFKDEI",
+    "operationMessage": "Operation effectuee avec succes.",
+    "operationStatus": "SUCCESS",
+    "referenceExterne": "ASS-SANDBOX-TRAILER-20260523140939",
+    "secureKey": "***REDACTED***"
+  }
+}

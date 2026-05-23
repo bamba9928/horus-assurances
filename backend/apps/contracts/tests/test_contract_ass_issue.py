@@ -1,4 +1,6 @@
+import json
 from io import StringIO
+from pathlib import Path
 from decimal import Decimal
 
 import pytest
@@ -8,6 +10,7 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 from rest_framework import serializers
 
+from apps.ass_api.models import ASSAPICallLog
 from apps.ass_api.sanitizers import REDACTED
 from apps.clients.models import Client
 from apps.contracts.ass_payloads import (
@@ -22,6 +25,7 @@ from apps.quotes.models import Quote
 from apps.vehicles.models import Vehicle
 
 User = get_user_model()
+FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
 
 class FakeIssuer:
@@ -182,6 +186,15 @@ def ass_contract_context():
 
 @pytest.mark.django_db
 def test_build_ass_qrcode_payload_uses_contract_data(ass_contract_context):
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        ass_product_data={
+            "garantiesOptPT": "OPTION_1",
+            "garantiesOptAR": "500000",
+            "garantiesOptAS": "OPTION_1",
+        }
+    )
+    ass_contract_context["contract"].refresh_from_db()
+
     payload = build_ass_qrcode_payload(ass_contract_context["contract"])
 
     assert payload["duree"] == 12
@@ -190,6 +203,9 @@ def test_build_ass_qrcode_payload_uses_contract_data(ass_contract_context):
     assert payload["referenceTrxPartner"] == "WAVE-TRX-001"
     assert payload["responsabiliteCivile"] == 18688
     assert payload["garanties"] == [1, 2, 4]
+    assert payload["garantiesOptPT"] == "OPTION_1"
+    assert payload["garantiesOptAR"] == "500000"
+    assert payload["garantiesOptAS"] == "OPTION_1"
     assert payload["assure"]["nom"] == "Ndiaye"
     assert payload["assure"]["prenom"] == "Awa"
     assert payload["vehicule"]["immatriculation"] == "DK-ASS-001"
@@ -365,6 +381,62 @@ def test_issue_contract_extracts_documented_diotali_link_keys(ass_contract_conte
 
 
 @pytest.mark.django_db
+def test_issue_contract_matches_real_moto_qrcode_success_fixture(ass_contract_context):
+    fixture = json.loads((FIXTURE_DIR / "ass_moto_qrcode_success.json").read_text())
+    issuer = FakeIssuer(response=fixture["body"])
+
+    contract = issue_contract(
+        contract=ass_contract_context["contract"],
+        issuer=issuer,
+    )
+
+    assert fixture["status_code"] == 200
+    assert fixture["body"]["operationStatus"] == "SUCCESS"
+    assert contract.attestation_reference == "SN004FTNNGK"
+    assert contract.attestation_url == "https://aas.diotali.com/#/attestation/SN004FTNNGK"
+    assert contract.carte_brune_url == "https://aas.diotali.com/#/carte-brune/SN004FTNNGK"
+    assert contract.qr_code_reference is None
+
+
+@pytest.mark.django_db
+def test_issue_contract_matches_real_auto_qrcode_success_fixture(ass_contract_context):
+    fixture = json.loads((FIXTURE_DIR / "ass_auto_qrcode_success.json").read_text())
+    issuer = FakeIssuer(response=fixture["body"])
+
+    contract = issue_contract(
+        contract=ass_contract_context["contract"],
+        issuer=issuer,
+    )
+
+    assert fixture["status_code"] == 201
+    assert fixture["body"]["operationStatus"] == "SUCCESS"
+    assert contract.attestation_reference == "SN004Q6BMD5"
+    assert contract.attestation_url == "https://aas.diotali.com/#/attestation/SN004Q6BMD5"
+    assert contract.carte_brune_url == "https://aas.diotali.com/#/carte-brune/SN004Q6BMD5"
+    assert contract.qr_code_reference is None
+
+
+@pytest.mark.django_db
+def test_issue_contract_matches_real_trailer_qrcode_success_fixture(
+    ass_contract_context,
+):
+    fixture = json.loads((FIXTURE_DIR / "ass_trailer_qrcode_success.json").read_text())
+    issuer = FakeIssuer(response=fixture["body"])
+
+    contract = issue_contract(
+        contract=ass_contract_context["contract"],
+        issuer=issuer,
+    )
+
+    assert fixture["status_code"] == 201
+    assert fixture["body"]["operationStatus"] == "SUCCESS"
+    assert contract.attestation_reference == "SN004NFKDEI"
+    assert contract.attestation_url == "https://aas.diotali.com/#/attestation/SN004NFKDEI"
+    assert contract.carte_brune_url == "https://aas.diotali.com/#/carte-brune/SN004NFKDEI"
+    assert contract.qr_code_reference is None
+
+
+@pytest.mark.django_db
 def test_issue_contract_does_not_call_ass_when_already_issued(ass_contract_context):
     Contract.objects.filter(pk=ass_contract_context["contract"].pk).update(
         status=Contract.Status.ISSUED,
@@ -528,3 +600,50 @@ def test_validate_ass_sandbox_issue_command_calls_ass_without_persisting(
     assert '"persisted_contract_issue": false' in command_output
     assert ass_contract_context["contract"].status == Contract.Status.READY_TO_ISSUE
     assert ass_contract_context["contract"].contract_number is None
+
+
+@pytest.mark.django_db
+@override_settings(ASS_BASE_URL="https://kiiraytest.example.com")
+def test_validate_ass_sandbox_issue_command_reports_business_error_cleanly(
+    ass_contract_context,
+    monkeypatch,
+):
+    class FakeCommandIssuer:
+        def issue(self, contract):
+            ASSAPICallLog.objects.create(
+                partner_group=contract.partner_group,
+                contract=contract,
+                endpoint="/api/v1/partner/moto.request",
+                method="POST",
+                status=ASSAPICallLog.Status.ERROR,
+                http_status_code=200,
+                request_payload={"password": "request-secret"},
+                response_payload={
+                    "operationStatus": "ERROR",
+                    "operationMessage": "Mot de passe password=response-secret",
+                },
+                error_message="password=response-secret",
+            )
+            raise serializers.ValidationError(
+                {"ass_api": "Mot de passe password=response-secret"}
+            )
+
+    monkeypatch.setattr(
+        "apps.contracts.management.commands.validate_ass_sandbox_issue.ASSContractIssuer",
+        FakeCommandIssuer,
+    )
+    output = StringIO()
+
+    with pytest.raises(CommandError, match="Appel ASS echoue"):
+        call_command(
+            "validate_ass_sandbox_issue",
+            ass_contract_context["contract"].id,
+            "--confirm-external-ass-call",
+            stdout=output,
+        )
+
+    command_output = output.getvalue()
+    assert "ass_error" in command_output
+    assert "/api/v1/partner/moto.request" in command_output
+    assert "response-secret" not in command_output
+    assert REDACTED in command_output

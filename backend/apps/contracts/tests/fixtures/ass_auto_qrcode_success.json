@@ -1,0 +1,21 @@
+{
+  "status_code": 201,
+  "body": {
+    "Cedeao": "300",
+    "CoutPolice": "0",
+    "Fga": "670",
+    "PrimeAG": "11025",
+    "PrimeRC": "26816",
+    "PrimeTotale": "44109",
+    "Reduction": "0",
+    "Taxe": "5298",
+    "attestationNumber": "SN004Q6BMD5",
+    "dateExpiration": "2026-11-22 23:59:59",
+    "linkAttestation": "https://aas.diotali.com/#/attestation/SN004Q6BMD5",
+    "linkCarteBrune": "https://aas.diotali.com/#/carte-brune/SN004Q6BMD5",
+    "operationMessage": "Operation effectuee avec succes.",
+    "operationStatus": "SUCCESS",
+    "referenceExterne": "ASS-SANDBOX-AUTO-20260523140238",
+    "secureKey": "***REDACTED***"
+  }
+}

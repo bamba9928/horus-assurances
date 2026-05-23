@@ -37,6 +37,21 @@ def build_ass_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
             "valeurNeuve": _decimal_or_zero(vehicle.new_value),
             "valeurActuelle": _decimal_or_zero(vehicle.current_value),
             "garanties": quote.coverage_options or [],
+            "garantiesOptPT": _product_data_value(
+                quote,
+                "garantiesOptPT",
+                "garanties_opt_pt",
+            ),
+            "garantiesOptAR": _product_data_value(
+                quote,
+                "garantiesOptAR",
+                "garanties_opt_ar",
+            ),
+            "garantiesOptAS": _product_data_value(
+                quote,
+                "garantiesOptAS",
+                "garanties_opt_as",
+            ),
             "cout_police": _decimal_or_zero(quote.fees_amount),
             "remise_rc": _decimal_or_zero(rc_discount_amount),
         }

@@ -5,8 +5,8 @@ jour a chaque phase importante, apres les changements de code et les tests.
 
 ## Etat actuel
 
-Backend Django REST Framework avance jusqu'a la phase 14 partielle cote
-integration ASS.
+Backend Django REST Framework avance jusqu'a la phase 13 terminee et la phase
+14 partielle cote integration ASS.
 
 Stack cible :
 
@@ -91,6 +91,12 @@ Stack cible :
   - `linkCarteBrune`
   - `attestationNumber`
   - variantes avec espaces autour des noms de cles
+- Emissions sandbox Diotali reelles validees sur contrats `MOTO`, `AUTO` et
+  `TRAILER`.
+- Fixture contractuelle de reponse QR Diotali :
+  - `apps/contracts/tests/fixtures/ass_moto_qrcode_success.json`
+  - `apps/contracts/tests/fixtures/ass_auto_qrcode_success.json`
+  - `apps/contracts/tests/fixtures/ass_trailer_qrcode_success.json`
 - Payloads ASS avances couverts par tests unitaires locaux :
   - Moto : `cylindre`, `usage`, `nombrePlace`
   - Remorque : `referenceVehicule`
@@ -104,7 +110,7 @@ Stack cible :
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `169 passed`
+- Suite complete backend : `173 passed`
 - `manage.py check` : OK
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
@@ -117,33 +123,54 @@ Stack cible :
 Objectif : valider une vraie reponse d'emission QR/document Diotali sans risquer
 de polluer la production.
 
-Etat : non terminee. Les prevalidations locales sont en place, mais aucune
-emission sandbox reelle non sensible n'a encore ete capturee.
+Etat : terminee pour la validation generique Diotali, sur emissions sandbox
+reelles `MOTO` et `AUTO`.
 
-Taches :
+Fait :
 
-- Creer ou identifier un contrat sandbox de test.
+- Base locale SQLite initialisee avec les migrations Django.
+- Contrat local de test cree pour previsualisation :
+  - `contract_id=1`
+  - produit `MOTO`
 - Previsualiser le payload via
   `POST /api/v1/contracts/{id}/ass-payload-preview/`.
 - Previsualiser ou executer prudemment l'appel sandbox via
   `python manage.py validate_ass_sandbox_issue <contract_id>`.
-- Appeler l'emission QR reelle uniquement avec validation explicite.
-- Capturer la reponse non sensible.
-- Figer une fixture contractuelle.
-- Confirmer les cles exactes pour :
-  - attestation
-  - carte brune
-- Ajuster l'extraction si necessaire apres reponse sandbox reelle.
+- Appel sandbox reel effectue avec validation explicite :
+  - endpoint `/api/v1/partner/moto.request`
+  - `operationStatus=SUCCESS`
+  - `attestationNumber=SN004FTNNGK`
+  - `linkAttestation` confirme
+  - `linkCarteBrune` confirme
+- Appel sandbox reel `AUTO` effectue avec validation explicite :
+  - endpoint `/api/v1/partner/qrcode.request`
+  - `operationStatus=SUCCESS`
+  - `attestationNumber=SN004Q6BMD5`
+  - `linkAttestation` confirme
+  - `linkCarteBrune` confirme
+- Appel sandbox reel `TRAILER` effectue avec validation explicite :
+  - endpoint `/api/v1/partner/remorque.qrcode.request`
+  - reference du tracteur confirmee : `referenceExterne` AUTO, pas
+    immatriculation ni numero d'attestation
+  - `operationStatus=SUCCESS`
+  - `attestationNumber=SN004NFKDEI`
+  - `linkAttestation` confirme
+  - `linkCarteBrune` confirme
+  - premiere remorque emise avec `responsabiliteCivile=0`, conformement a la
+    documentation ASS
+- Fixture non sensible figee dans
+  `apps/contracts/tests/fixtures/ass_moto_qrcode_success.json`.
+- Fixture non sensible figee dans
+  `apps/contracts/tests/fixtures/ass_auto_qrcode_success.json`.
+- Fixture non sensible figee dans
+  `apps/contracts/tests/fixtures/ass_trailer_qrcode_success.json`.
+- Test contractuel ajoute pour verifier l'extraction depuis la fixture reelle.
 
-Avancement local :
+Reserve :
 
-- Les cles documentees `linkAttestation`, `linkCarteBrune` et
-  `attestationNumber` sont prises en charge par l'extraction locale.
-- Les endpoints de previsualisation permettent de verifier les payloads sans
-  consommer de QR code ni creer d'attestation externe.
-- La commande `validate_ass_sandbox_issue` permet de preparer l'appel sandbox et
-  d'effectuer l'appel avec double garde-fou, sans persister l'emission.
-- Il reste a confirmer ces cles sur une vraie emission sandbox non sensible.
+- Cette phase valide le format Diotali et les cles documentaires sur un premier
+  produit. Les emissions sandbox par produit restent a derouler dans la phase
+  14.
 
 ### Phase 14 - Produits ASS avances
 
@@ -153,10 +180,12 @@ Etat : demarree, avec payloads locaux et routage backend couverts par tests.
 
 Fait :
 
-- Auto : flux `rc.request` conserve.
+- Auto : flux `rc.request` conserve, options garanties `garantiesOptPT`,
+  `garantiesOptAR`, `garantiesOptAS` ajoutees, emission sandbox validee.
 - Moto : payloads RC/QR enrichis avec `cylindre`, `usage`, `nombrePlace`.
-- Remorque : payload RC exige `referenceVehicule`; payload QR peut utiliser la
-  reference fournie dans `ass_product_data`.
+- Remorque : payload RC exige `referenceVehicule`; payload QR utilise la
+  reference fournie dans `ass_product_data`; sandbox confirmee avec la
+  `referenceExterne` du tracteur AUTO et RC a `0` pour la premiere remorque.
 - Garage : payloads RC/QR gerent `nombreCarte`.
 - Flotte : payload RC accepte `referenceFlotte` et `requests`, avec fallback
   mono-vehicule local.
@@ -166,7 +195,8 @@ Fait :
 
 Reste a faire :
 
-- Valider ces payloads en sandbox ASS sans emission de production.
+- Valider les payloads `GARAGE`, `FLEET` en sandbox ASS sans emission de
+  production.
 - Confirmer les champs exacts a exposer dans l'API publique au lieu de garder
   seulement `ass_product_data`.
 - Flotte : modeliser proprement le multi-vehicules si le produit doit gerer de

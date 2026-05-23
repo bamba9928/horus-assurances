@@ -18,6 +18,21 @@ def build_ass_qrcode_payload(contract):
         "valeurNeuve": _decimal_or_none(vehicle.new_value),
         "valeurActuelle": _decimal_or_none(vehicle.current_value),
         "garanties": quote.coverage_options or [],
+        "garantiesOptPT": _product_data_value(
+            quote,
+            "garantiesOptPT",
+            "garanties_opt_pt",
+        ),
+        "garantiesOptAR": _product_data_value(
+            quote,
+            "garantiesOptAR",
+            "garanties_opt_ar",
+        ),
+        "garantiesOptAS": _product_data_value(
+            quote,
+            "garantiesOptAS",
+            "garanties_opt_as",
+        ),
         "periodicite": quote.periodicity,
         "souscripteur": _client_payload(client),
         "typePersonne": "MORALE" if client.client_type == "COMPANY" else "PHYSIQUE",

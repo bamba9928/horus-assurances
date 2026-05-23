@@ -1,9 +1,11 @@
 import json
 
+import httpx
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from rest_framework import serializers
 
+from apps.ass_api.models import ASSAPICallLog
 from apps.ass_api.sanitizers import sanitize_error_message, sanitize_value
 from apps.payments.models import Payment
 
@@ -54,7 +56,14 @@ class Command(BaseCommand):
             allow_non_sandbox_base_url=options["allow_non_sandbox_base_url"],
         )
 
-        response_payload = ASSContractIssuer().issue(contract)
+        try:
+            response_payload = ASSContractIssuer().issue(contract)
+        except (httpx.HTTPError, serializers.ValidationError) as exc:
+            self._write_last_ass_error(contract)
+            raise CommandError(
+                f"Appel ASS echoue: {sanitize_error_message(str(exc))}"
+            ) from exc
+
         self.stdout.write(
             self._json(
                 {
@@ -109,6 +118,29 @@ class Command(BaseCommand):
                 "ASS_BASE_URL ne ressemble pas a une sandbox. Relancer avec "
                 "--allow-non-sandbox-base-url uniquement apres confirmation ASS."
             )
+
+    def _write_last_ass_error(self, contract):
+        log = (
+            ASSAPICallLog.objects.filter(contract=contract)
+            .order_by("-created_at", "-id")
+            .first()
+        )
+        if not log:
+            return
+
+        self.stdout.write(
+            self._json(
+                {
+                    "ass_error": {
+                        "endpoint": log.endpoint,
+                        "http_status_code": log.http_status_code,
+                        "status": log.status,
+                        "response_payload": sanitize_value(log.response_payload),
+                        "error_message": sanitize_error_message(log.error_message),
+                    }
+                }
+            )
+        )
 
     @staticmethod
     def _json(payload):
