@@ -79,3 +79,14 @@ class UserSerializer(serializers.ModelSerializer):
         instance.full_clean()
         instance.save()
         return instance
+
+
+class ContributorSerializer(UserSerializer):
+    def validate(self, attrs):
+        role = attrs.get("role", getattr(self.instance, "role", User.Role.CONTRIBUTOR))
+        if role != User.Role.CONTRIBUTOR:
+            raise serializers.ValidationError(
+                {"role": "Le endpoint contributors ne gere que les apporteurs."}
+            )
+        attrs["role"] = User.Role.CONTRIBUTOR
+        return super().validate(attrs)

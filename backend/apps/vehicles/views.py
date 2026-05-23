@@ -5,6 +5,7 @@ from .serializers import VehicleSerializer
 
 
 class VehicleViewSet(viewsets.ModelViewSet):
+    queryset = Vehicle.objects.none()
     serializer_class = VehicleSerializer
     filterset_fields = ["partner_group", "client", "contributor", "energy", "is_active"]
     search_fields = [
@@ -23,6 +24,10 @@ class VehicleViewSet(viewsets.ModelViewSet):
             "partner_group", "client", "contributor", "created_by"
         )
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:

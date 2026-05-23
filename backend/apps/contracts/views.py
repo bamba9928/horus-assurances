@@ -8,6 +8,7 @@ from .services import create_contract_from_payment, issue_contract
 
 
 class ContractViewSet(viewsets.ModelViewSet):
+    queryset = Contract.objects.none()
     serializer_class = ContractSerializer
     filterset_fields = [
         "partner_group",
@@ -42,6 +43,10 @@ class ContractViewSet(viewsets.ModelViewSet):
             "created_by",
         )
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:

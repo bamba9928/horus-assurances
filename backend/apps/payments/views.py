@@ -16,6 +16,7 @@ from .services import confirm_payment, credit_wallet, debit_wallet, get_or_creat
 
 
 class GroupWalletViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = GroupWallet.objects.none()
     serializer_class = GroupWalletSerializer
     filterset_fields = ["partner_group", "currency"]
     ordering_fields = ["id", "balance", "created_at", "updated_at"]
@@ -23,6 +24,10 @@ class GroupWalletViewSet(viewsets.ReadOnlyModelViewSet):
 
     def _ensure_accessible_wallets(self):
         user = self.request.user
+        if getattr(self, "swagger_fake_view", False):
+            return
+        if not user or not user.is_authenticated:
+            return
         if user.is_general_admin:
             for partner_group in PartnerGroup.objects.all():
                 get_or_create_wallet(partner_group)
@@ -34,6 +39,10 @@ class GroupWalletViewSet(viewsets.ReadOnlyModelViewSet):
         self._ensure_accessible_wallets()
         queryset = GroupWallet.objects.select_related("partner_group")
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:
@@ -76,6 +85,7 @@ class GroupWalletViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class WalletTransactionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    queryset = WalletTransaction.objects.none()
     serializer_class = WalletTransactionSerializer
     filterset_fields = ["partner_group", "wallet", "transaction_type", "direction"]
     ordering_fields = ["id", "created_at", "amount"]
@@ -89,6 +99,10 @@ class WalletTransactionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
             "created_by",
         )
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:
@@ -97,6 +111,7 @@ class WalletTransactionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
+    queryset = Payment.objects.none()
     serializer_class = PaymentSerializer
     filterset_fields = ["partner_group", "quote", "client", "contributor", "method", "status"]
     search_fields = ["external_reference", "idempotency_key", "quote__reference"]
@@ -114,6 +129,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
             "wallet_transaction",
         )
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:

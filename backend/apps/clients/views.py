@@ -5,6 +5,7 @@ from .serializers import ClientSerializer
 
 
 class ClientViewSet(viewsets.ModelViewSet):
+    queryset = Client.objects.none()
     serializer_class = ClientSerializer
     filterset_fields = ["partner_group", "contributor", "client_type", "is_active"]
     search_fields = [
@@ -24,6 +25,10 @@ class ClientViewSet(viewsets.ModelViewSet):
             "partner_group", "contributor", "created_by"
         )
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:

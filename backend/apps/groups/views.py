@@ -7,6 +7,7 @@ from .serializers import PartnerGroupSerializer
 
 
 class PartnerGroupViewSet(viewsets.ModelViewSet):
+    queryset = PartnerGroup.objects.none()
     serializer_class = PartnerGroupSerializer
     permission_classes = [PartnerGroupAccessPermission]
     filterset_fields = ["status"]
@@ -18,6 +19,10 @@ class PartnerGroupViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = PartnerGroup.objects.all()
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.partner_group_id:

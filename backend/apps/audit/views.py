@@ -16,6 +16,7 @@ class CanReadAuditLogs(BasePermission):
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AuditLog.objects.none()
     serializer_class = AuditLogSerializer
     permission_classes = [CanReadAuditLogs]
     filterset_fields = ["partner_group", "actor", "action", "target_type", "target_id"]
@@ -26,6 +27,10 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         queryset = AuditLog.objects.select_related("partner_group", "actor")
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:

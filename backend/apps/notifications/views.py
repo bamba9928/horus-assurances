@@ -8,12 +8,17 @@ from .serializers import NotificationSerializer
 
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Notification.objects.none()
     serializer_class = NotificationSerializer
     filterset_fields = ["notification_type", "partner_group", "read_at"]
     ordering_fields = ["id", "created_at", "read_at"]
     ordering = ["-created_at", "-id"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
+        if not self.request.user or not self.request.user.is_authenticated:
+            return Notification.objects.none()
         return Notification.objects.select_related("partner_group", "recipient").filter(
             recipient=self.request.user
         )

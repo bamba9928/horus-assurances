@@ -12,6 +12,7 @@ from .services import generate_commission_for_contract, mark_commission_paid
 
 
 class CommissionRuleViewSet(viewsets.ModelViewSet):
+    queryset = CommissionRule.objects.none()
     serializer_class = CommissionRuleSerializer
     filterset_fields = ["partner_group", "contributor", "is_active"]
     ordering_fields = ["id", "created_at", "updated_at", "percentage_rate", "fixed_amount"]
@@ -21,6 +22,10 @@ class CommissionRuleViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = CommissionRule.objects.select_related("partner_group", "contributor")
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:
@@ -33,6 +38,7 @@ class CommissionViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
+    queryset = Commission.objects.none()
     serializer_class = CommissionSerializer
     filterset_fields = ["partner_group", "contract", "payment", "contributor", "status"]
     ordering_fields = ["id", "created_at", "generated_at", "paid_at", "amount"]
@@ -48,6 +54,10 @@ class CommissionViewSet(
             "rule",
         )
 
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
+        if not user or not user.is_authenticated:
+            return queryset.none()
         if user.is_general_admin:
             return queryset
         if user.is_group_admin:
