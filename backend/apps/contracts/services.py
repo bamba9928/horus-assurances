@@ -101,6 +101,8 @@ def issue_contract(*, contract, issuer=None, actor=None):
                 "contract_number",
                 "attestation_reference",
                 "qr_code_reference",
+                "attestation_url",
+                "carte_brune_url",
                 "status",
                 "issued_at",
                 "updated_at",
@@ -115,6 +117,8 @@ def issue_contract(*, contract, issuer=None, actor=None):
                 "contract_number": contract.contract_number,
                 "attestation_reference": contract.attestation_reference,
                 "qr_code_reference": contract.qr_code_reference,
+                "attestation_url": contract.attestation_url,
+                "carte_brune_url": contract.carte_brune_url,
             },
         )
         create_notifications_for_group(
@@ -129,6 +133,8 @@ def issue_contract(*, contract, issuer=None, actor=None):
                 "contract_number": contract.contract_number,
                 "attestation_reference": contract.attestation_reference,
                 "qr_code_reference": contract.qr_code_reference,
+                "attestation_url": contract.attestation_url,
+                "carte_brune_url": contract.carte_brune_url,
             },
         )
         return contract
@@ -178,6 +184,23 @@ def _apply_ass_response(contract, ass_response):
             "referenceAttestation",
             "reference_attestation",
             "attestation",
+        ),
+    )
+    qr_code_reference = _find_value(
+        ass_response,
+        (
+            "qr_code_reference",
+            "qrCodeReference",
+            "qrcode_reference",
+            "qrcode",
+            "qrCode",
+            "codeQr",
+            "code_qr",
+        ),
+    )
+    attestation_url = _find_value(
+        ass_response,
+        (
             "attestationUrl",
             "attestation_url",
             "attestationLink",
@@ -192,31 +215,34 @@ def _apply_ass_response(contract, ass_response):
             "lienPolice",
         ),
     )
-    qr_code_reference = _find_value(
+    carte_brune_url = _find_value(
         ass_response,
         (
-            "qr_code_reference",
-            "qrCodeReference",
-            "qrcode_reference",
-            "qrcode",
-            "qrCode",
-            "codeQr",
-            "code_qr",
-            "qrCodeUrl",
-            "qr_code_url",
-            "qrcodeUrl",
-            "qrcode_url",
-            "urlQrCode",
-            "urlQrcode",
-            "lienQrCode",
-            "lienQrcode",
-            "qrCodeLink",
-            "qrcodeLink",
-            "diotaliQrLink",
+            "carteBruneUrl",
+            "carte_brune_url",
+            "carteBruneLink",
+            "carte_brune_link",
+            "urlCarteBrune",
+            "lienCarteBrune",
+            "lienCarteBrunePdf",
+            "carteBrunePdfUrl",
+            "carteBrune",
+            "carte_brune",
+            "brownCardUrl",
+            "brown_card_url",
+            "brownCardLink",
         ),
     )
 
-    if not any((contract_number, attestation_reference, qr_code_reference)):
+    if not any(
+        (
+            contract_number,
+            attestation_reference,
+            qr_code_reference,
+            attestation_url,
+            carte_brune_url,
+        )
+    ):
         raise serializers.ValidationError(
             {"ass_api": "La reponse ASS ne contient aucune reference exploitable."}
         )
@@ -227,6 +253,10 @@ def _apply_ass_response(contract, ass_response):
         contract.attestation_reference = str(attestation_reference)
     if qr_code_reference:
         contract.qr_code_reference = str(qr_code_reference)
+    if attestation_url:
+        contract.attestation_url = str(attestation_url)
+    if carte_brune_url:
+        contract.carte_brune_url = str(carte_brune_url)
 
 
 def _find_value(value, keys):

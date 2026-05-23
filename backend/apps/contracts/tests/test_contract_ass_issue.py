@@ -263,7 +263,7 @@ def test_issue_contract_extracts_diotali_links_from_ass_response(ass_contract_co
             "police": "ASS-CONTRACT-DIOTALI",
             "links": {
                 "attestationUrl": "https://diotali.example.test/attestation.pdf",
-                "qrCodeUrl": "https://diotali.example.test/qrcode.png",
+                "carteBruneUrl": "https://diotali.example.test/carte-brune.pdf",
             },
         }
     )
@@ -274,8 +274,10 @@ def test_issue_contract_extracts_diotali_links_from_ass_response(ass_contract_co
     )
 
     assert contract.contract_number == "ASS-CONTRACT-DIOTALI"
-    assert contract.attestation_reference == "https://diotali.example.test/attestation.pdf"
-    assert contract.qr_code_reference == "https://diotali.example.test/qrcode.png"
+    assert contract.attestation_reference is None
+    assert contract.qr_code_reference is None
+    assert contract.attestation_url == "https://diotali.example.test/attestation.pdf"
+    assert contract.carte_brune_url == "https://diotali.example.test/carte-brune.pdf"
 
 
 @pytest.mark.django_db

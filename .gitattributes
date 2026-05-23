@@ -1,6 +1,7 @@
 * text=auto
 
 .gitattributes text eol=lf
+.env.example text eol=lf
 *.py text eol=lf
 *.toml text eol=lf
 *.lock text eol=lf

@@ -13,6 +13,21 @@ ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", default="", cast=Csv())
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS is required in production.")
 
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("DATABASE_NAME", default=""),
+        "USER": config("DATABASE_USER", default=""),
+        "PASSWORD": config("DATABASE_PASSWORD", default=""),
+        "HOST": config("DATABASE_HOST", default=""),
+        "PORT": config("DATABASE_PORT", default="5432"),
+    }
+}
+
+for setting_name in ("DATABASE_NAME", "DATABASE_USER", "DATABASE_HOST"):
+    if not config(setting_name, default=""):
+        raise ImproperlyConfigured(f"{setting_name} is required in production.")
+
 SECURE_SSL_REDIRECT = config("DJANGO_SECURE_SSL_REDIRECT", default=True, cast=bool)
 SECURE_HSTS_SECONDS = config("DJANGO_SECURE_HSTS_SECONDS", default=31536000, cast=int)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = config(

@@ -1,0 +1,58 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Django checks and tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      DJANGO_SETTINGS_MODULE: config.settings.test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements/test.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/test.txt
+
+      - name: Check Django project
+        run: python manage.py check
+
+      - name: Check migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Check production settings
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: production-check-secret-key-with-more-than-fifty-characters
+          DJANGO_ALLOWED_HOSTS: example.com
+          DATABASE_NAME: horus_assurances
+          DATABASE_USER: horus_user
+          DATABASE_HOST: db.example.test
+        run: python manage.py check --deploy

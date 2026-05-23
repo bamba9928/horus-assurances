@@ -68,6 +68,10 @@ Des aliases compatibles avec le prompt initial sont aussi exposes sous `/api/`.
 Les secrets doivent rester dans les variables d'environnement. Ne pas commiter de
 fichier `.env` avec des identifiants reels.
 
+En local, `config.settings.local` utilise SQLite dans `backend/db.sqlite3`.
+En production, `config.settings.production` force PostgreSQL et exige les
+variables `DATABASE_NAME`, `DATABASE_USER` et `DATABASE_HOST`.
+
 Variables importantes :
 
 - `DJANGO_SETTINGS_MODULE` (`config.settings.local`, `config.settings.test` ou
@@ -133,9 +137,9 @@ L'emission des contrats route l'appel QR selon le type de produit du devis :
 - `TRAILER` : `remorque.qrcode.request`
 - `GARAGE` : `garage.request`
 
-Les reponses ASS/Diotali peuvent fournir deux liens, par exemple un lien
-attestation et un lien QR. Le backend les conserve dans les references du
-contrat quand ils sont presents.
+Les reponses ASS/Diotali peuvent fournir deux liens documentaires : un lien
+attestation et un lien carte brune. Le backend les expose dans les champs dedies
+`attestation_url` et `carte_brune_url`, sans les melanger avec les references ASS.
 
 ## Etat de phase
 

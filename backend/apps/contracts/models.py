@@ -62,6 +62,8 @@ class Contract(models.Model):
         blank=True,
     )
     qr_code_reference = models.CharField(max_length=120, unique=True, null=True, blank=True)
+    attestation_url = models.URLField(max_length=500, blank=True)
+    carte_brune_url = models.URLField(max_length=500, blank=True)
     issued_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
