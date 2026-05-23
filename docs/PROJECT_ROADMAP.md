@@ -64,6 +64,10 @@ Stack cible :
   - `POST /api/v1/contracts/{id}/ass-payload-preview/`
   - construit le payload d'emission ASS/Diotali sans appeler ASS
   - herite de l'isolation multi-groupe/apporteur du contrat
+- Endpoint documentaire contrat :
+  - `GET /api/v1/contracts/{id}/documents/`
+  - expose `attestation_url` et `carte_brune_url` pour les frontends web/mobile
+  - herite de l'isolation multi-groupe/apporteur du contrat
 - Commande sandbox protegee :
   - `python manage.py validate_ass_sandbox_issue <contract_id>`
   - affiche le payload d'emission sans appel externe par defaut
@@ -110,7 +114,7 @@ Stack cible :
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `173 passed`
+- Suite complete backend : `175 passed`
 - `manage.py check` : OK
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK

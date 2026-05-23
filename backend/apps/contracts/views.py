@@ -3,7 +3,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Contract
-from .serializers import ContractFromPaymentSerializer, ContractSerializer
+from .serializers import (
+    ContractDocumentsSerializer,
+    ContractFromPaymentSerializer,
+    ContractSerializer,
+)
 from .services import (
     build_contract_ass_payload_preview,
     create_contract_from_payment,
@@ -70,6 +74,14 @@ class ContractViewSet(viewsets.ModelViewSet):
         contract = self.get_object()
         return Response(
             build_contract_ass_payload_preview(contract=contract),
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["get"], url_path="documents")
+    def documents(self, request, pk=None):
+        contract = self.get_object()
+        return Response(
+            ContractDocumentsSerializer(contract, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
 

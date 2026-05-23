@@ -191,5 +191,21 @@ class ContractSerializer(serializers.ModelSerializer):
         return instance
 
 
+class ContractDocumentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contract
+        fields = [
+            "id",
+            "status",
+            "contract_number",
+            "attestation_reference",
+            "qr_code_reference",
+            "attestation_url",
+            "carte_brune_url",
+            "issued_at",
+        ]
+        read_only_fields = fields
+
+
 class ContractFromPaymentSerializer(serializers.Serializer):
     payment = serializers.PrimaryKeyRelatedField(queryset=Payment.objects.all())

@@ -432,6 +432,47 @@ def test_contributor_cannot_preview_contract_from_another_contributor(contract_c
 
 
 @pytest.mark.django_db
+def test_contract_documents_returns_diotali_links_for_own_contract(contract_context):
+    Contract.objects.filter(pk=contract_context["contract_a"].pk).update(
+        status=Contract.Status.ISSUED,
+        contract_number="ASS-CONTRACT-DOC-001",
+        attestation_reference="SN00DOC001",
+        attestation_url="https://diotali.example.test/attestation/SN00DOC001",
+        carte_brune_url="https://diotali.example.test/carte-brune/SN00DOC001",
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/documents/",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == {
+        "id": contract_context["contract_a"].id,
+        "status": Contract.Status.ISSUED,
+        "contract_number": "ASS-CONTRACT-DOC-001",
+        "attestation_reference": "SN00DOC001",
+        "qr_code_reference": None,
+        "attestation_url": "https://diotali.example.test/attestation/SN00DOC001",
+        "carte_brune_url": "https://diotali.example.test/carte-brune/SN00DOC001",
+        "issued_at": None,
+    }
+
+
+@pytest.mark.django_db
+def test_contributor_cannot_read_documents_from_other_contributor(contract_context):
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_b'].id}/documents/",
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
 def test_issue_contract_rejects_unconfirmed_payment(contract_context):
     Payment.objects.filter(pk=contract_context["confirmed_payment_a"].pk).update(
         status=Payment.Status.PENDING,
