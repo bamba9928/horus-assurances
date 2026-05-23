@@ -5,9 +5,12 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from apps.clients.models import Client
-from apps.contracts.ass_payloads import build_ass_qrcode_payload
+from apps.contracts.ass_payloads import (
+    build_ass_qrcode_payload,
+    build_ass_qrcode_payload_for_product,
+)
 from apps.contracts.models import Contract
-from apps.contracts.services import issue_contract
+from apps.contracts.services import ASSContractIssuer, issue_contract
 from apps.groups.models import PartnerGroup
 from apps.payments.models import Payment
 from apps.quotes.models import Quote
@@ -31,6 +34,66 @@ class FakeIssuer:
         if self.exception:
             raise self.exception
         return self.response
+
+
+class RecordingASSClient:
+    def __init__(self):
+        self.calls = []
+
+    def _record(self, method_name, payload, *, partner_group=None, contract=None):
+        self.calls.append(
+            {
+                "method": method_name,
+                "payload": payload,
+                "partner_group": partner_group,
+                "contract": contract,
+            }
+        )
+        return {
+            "contractNumber": "ASS-CONTRACT-123",
+            "attestationReference": "ASS-ATT-123",
+            "qrCodeReference": "ASS-QR-123",
+        }
+
+    def request_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "request_qrcode",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_moto_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "request_moto_qrcode",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_fleet_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "request_fleet_qrcode",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_trailer_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "request_trailer_qrcode",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_garage_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "request_garage_qrcode",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
 
 
 @pytest.fixture
@@ -129,6 +192,54 @@ def test_build_ass_qrcode_payload_uses_contract_data(ass_contract_context):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("product_type", "method_name"),
+    [
+        (Quote.ProductType.AUTO, "request_qrcode"),
+        (Quote.ProductType.MOTO, "request_moto_qrcode"),
+        (Quote.ProductType.FLEET, "request_fleet_qrcode"),
+        (Quote.ProductType.TRAILER, "request_trailer_qrcode"),
+        (Quote.ProductType.GARAGE, "request_garage_qrcode"),
+    ],
+)
+def test_ass_contract_issuer_routes_qrcode_by_product_type(
+    ass_contract_context,
+    product_type,
+    method_name,
+):
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        product_type=product_type
+    )
+    ass_contract_context["contract"].refresh_from_db()
+    ass_client = RecordingASSClient()
+    issuer = ASSContractIssuer(client=ass_client)
+
+    response = issuer.issue(ass_contract_context["contract"])
+
+    assert response["contractNumber"] == "ASS-CONTRACT-123"
+    assert ass_client.calls[0]["method"] == method_name
+    assert ass_client.calls[0]["partner_group"] == ass_contract_context["group"]
+    assert ass_client.calls[0]["contract"] == ass_contract_context["contract"]
+
+
+@pytest.mark.django_db
+def test_build_ass_qrcode_payload_for_fleet_wraps_single_contract_item(
+    ass_contract_context,
+):
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        product_type=Quote.ProductType.FLEET
+    )
+    ass_contract_context["contract"].refresh_from_db()
+
+    payload = build_ass_qrcode_payload_for_product(ass_contract_context["contract"])
+
+    assert payload["referenceFlotte"].startswith("HORUS-FLEET-")
+    assert payload["items"][0]["referenceTrxPartner"] == "WAVE-TRX-001"
+    assert payload["items"][0]["responsabiliteCivile"] == 18688
+    assert payload["items"][0]["vehicule"]["immatriculation"] == "DK-ASS-001"
+
+
+@pytest.mark.django_db
 def test_issue_contract_updates_references_from_ass_response(ass_contract_context):
     issuer = FakeIssuer()
 
@@ -143,6 +254,28 @@ def test_issue_contract_updates_references_from_ass_response(ass_contract_contex
     assert contract.attestation_reference == "ASS-ATT-123"
     assert contract.qr_code_reference == "ASS-QR-123"
     assert contract.issued_at is not None
+
+
+@pytest.mark.django_db
+def test_issue_contract_extracts_diotali_links_from_ass_response(ass_contract_context):
+    issuer = FakeIssuer(
+        response={
+            "police": "ASS-CONTRACT-DIOTALI",
+            "links": {
+                "attestationUrl": "https://diotali.example.test/attestation.pdf",
+                "qrCodeUrl": "https://diotali.example.test/qrcode.png",
+            },
+        }
+    )
+
+    contract = issue_contract(
+        contract=ass_contract_context["contract"],
+        issuer=issuer,
+    )
+
+    assert contract.contract_number == "ASS-CONTRACT-DIOTALI"
+    assert contract.attestation_reference == "https://diotali.example.test/attestation.pdf"
+    assert contract.qr_code_reference == "https://diotali.example.test/qrcode.png"
 
 
 @pytest.mark.django_db

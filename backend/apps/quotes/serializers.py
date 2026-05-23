@@ -153,6 +153,19 @@ class QuoteSerializer(serializers.ModelSerializer):
 
 
 class QuoteCalculateSerializer(serializers.Serializer):
+    use_ass = serializers.BooleanField(required=False, default=False)
+    rc_discount_amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        required=False,
+        min_value=0,
+        default=0,
+    )
+    periodicity = serializers.ChoiceField(
+        choices=Quote.Periodicity.choices,
+        required=False,
+    )
+    duration = serializers.IntegerField(required=False, min_value=1, max_value=120)
     coverage_options = serializers.JSONField(required=False)
     civil_liability_amount = serializers.DecimalField(
         max_digits=14,

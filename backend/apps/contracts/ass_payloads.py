@@ -25,6 +25,103 @@ def build_ass_qrcode_payload(contract):
     return _drop_none(payload)
 
 
+def build_ass_qrcode_payload_for_product(contract):
+    product_type = contract.quote.product_type
+    if product_type == "FLEET":
+        return build_ass_fleet_qrcode_payload(contract)
+    if product_type == "TRAILER":
+        return build_ass_trailer_qrcode_payload(contract)
+    if product_type == "GARAGE":
+        return build_ass_garage_qrcode_payload(contract)
+    if product_type == "MOTO":
+        return build_ass_moto_qrcode_payload(contract)
+    return build_ass_qrcode_payload(contract)
+
+
+def build_ass_fleet_qrcode_payload(contract):
+    quote = contract.quote
+    client = contract.client
+    return _drop_none(
+        {
+            "referenceFlotte": f"HORUS-FLEET-{contract.id:06d}",
+            "dateEffet": _date_or_none(quote.effective_date),
+            "duree": quote.duration,
+            "periodicite": quote.periodicity,
+            "typePersonne": _person_type(client),
+            "police": contract.contract_number or f"HORUS-PENDING-{contract.id:06d}",
+            "cout_police": _decimal_or_none(quote.fees_amount),
+            "remise_rc": 0,
+            "souscripteur": _client_payload(client),
+            "items": [
+                {
+                    "responsabiliteCivile": _decimal_or_none(
+                        quote.civil_liability_amount
+                    ),
+                    "referenceTrxPartner": _payment_reference(contract),
+                    "assure": _client_payload(client),
+                    "vehicule": _vehicle_payload(contract.vehicle),
+                }
+            ],
+        }
+    )
+
+
+def build_ass_trailer_qrcode_payload(contract):
+    base_payload = _flat_qrcode_payload(contract)
+    vehicle = contract.vehicle
+    base_payload.update(
+        {
+            "referenceVehicule": vehicle.registration_number,
+            "immatriculation": vehicle.registration_number,
+            "marque": vehicle.brand,
+            "modele": vehicle.model,
+        }
+    )
+    return _drop_none(base_payload)
+
+
+def build_ass_garage_qrcode_payload(contract):
+    quote = contract.quote
+    vehicle = contract.vehicle
+    base_payload = _flat_qrcode_payload(contract)
+    base_payload.update(
+        {
+            "nombreCarte": 1,
+            "immatriculation": vehicle.registration_number,
+            "genre": vehicle.genre,
+            "valeurNeuve": _decimal_or_none(vehicle.new_value),
+            "valeurActuelle": _decimal_or_none(vehicle.current_value),
+            "garanties": quote.coverage_options or [],
+        }
+    )
+    return _drop_none(base_payload)
+
+
+def build_ass_moto_qrcode_payload(contract):
+    payload = _flat_qrcode_payload(contract)
+    payload["vehicule"] = _vehicle_payload(contract.vehicle)
+    return _drop_none(payload)
+
+
+def _flat_qrcode_payload(contract):
+    quote = contract.quote
+    client = contract.client
+    return {
+        "responsabiliteCivile": _decimal_or_none(quote.civil_liability_amount),
+        "dateEffet": _date_or_none(quote.effective_date),
+        "dateExpiration": _date_or_none(quote.expiration_date),
+        "police": contract.contract_number or f"HORUS-PENDING-{contract.id:06d}",
+        "cout_police": _decimal_or_none(quote.fees_amount),
+        "remise_rc": 0,
+        "duree": quote.duration,
+        "periodicite": quote.periodicity,
+        "referenceTrxPartner": _payment_reference(contract),
+        "typePersonne": _person_type(client),
+        "souscripteur": _client_payload(client),
+        "assure": _client_payload(client),
+    }
+
+
 def _client_payload(client):
     return {
         "nom": client.company_name or client.last_name or client.first_name,
@@ -32,6 +129,10 @@ def _client_payload(client):
         "cellulaire": client.phone,
         "email": client.email,
     }
+
+
+def _person_type(client):
+    return "MORALE" if client.client_type == "COMPANY" else "PHYSIQUE"
 
 
 def _vehicle_payload(vehicle):

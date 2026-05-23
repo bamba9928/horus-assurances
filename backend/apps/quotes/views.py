@@ -4,6 +4,7 @@ from rest_framework.response import Response
 
 from .models import Quote
 from .serializers import QuoteCalculateSerializer, QuoteSerializer
+from .services import calculate_quote_with_ass
 
 
 class QuoteViewSet(viewsets.ModelViewSet):
@@ -53,8 +54,22 @@ class QuoteViewSet(viewsets.ModelViewSet):
         quote = self.get_object()
         serializer = QuoteCalculateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        calculation_values = serializer.validated_data.copy()
+        use_ass = calculation_values.pop("use_ass", False)
+        rc_discount_amount = calculation_values.pop("rc_discount_amount", 0)
 
-        for field, value in serializer.validated_data.items():
+        if use_ass:
+            quote = calculate_quote_with_ass(
+                quote=quote,
+                calculation_values=calculation_values,
+                rc_discount_amount=rc_discount_amount,
+            )
+            return Response(
+                QuoteSerializer(quote, context={"request": request}).data,
+                status=status.HTTP_200_OK,
+            )
+
+        for field, value in calculation_values.items():
             setattr(quote, field, value)
 
         quote.status = Quote.Status.CALCULATED

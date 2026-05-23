@@ -101,11 +101,47 @@ Les tests couvrent surtout l'isolation multi-groupe, les permissions par role,
 les wallets, les paiements, les contrats, l'integration ASS preparee, les
 commissions, l'audit, les notifications et le durcissement API.
 
+## Calcul ASS des devis
+
+L'action `POST /api/v1/quotes/{id}/calculate/` conserve le mode manuel existant.
+Pour declencher un calcul RC via ASS, envoyer `use_ass: true`. Le backend construit
+alors le payload `rc.request`, appelle le client ASS configure par variables
+d'environnement, extrait les montants de la reponse et met le devis en statut
+`CALCULATED`.
+
+Exemple :
+
+```json
+{
+  "use_ass": true,
+  "coverage_options": [1, 2, 4],
+  "fees_amount": "3000.00"
+}
+```
+
+Le format reel valide en sandbox pour `rc.request` est fige dans les tests. ASS
+renvoie notamment `PrimeRC`, `PrimeAG`, `CoutPolice`, `PrimeTotale`, `Taxe`,
+`Fga`, `Cedeao`, `data`, `operationStatus` et `code`.
+
+## Emission QR ASS
+
+L'emission des contrats route l'appel QR selon le type de produit du devis :
+
+- `AUTO` : `qrcode.request`
+- `MOTO` : `moto.request`
+- `FLEET` : `qrcode.flotte.request`
+- `TRAILER` : `remorque.qrcode.request`
+- `GARAGE` : `garage.request`
+
+Les reponses ASS/Diotali peuvent fournir deux liens, par exemple un lien
+attestation et un lien QR. Le backend les conserve dans les references du
+contrat quand ils sont presents.
+
 ## Etat de phase
 
-Le depot est aligne sur `PHASE 11`. Avant de demarrer la phase 12, le backend
-expose les endpoints attendus par le prompt initial et conserve les routes
-versionnees deja utilisees par les tests.
+Le depot est aligne sur `PHASE 12`. Le backend expose les endpoints attendus par
+le prompt initial, conserve les routes versionnees deja utilisees par les tests
+et dispose d'un calcul RC ASS optionnel pour les devis.
 
-La phase 12 peut maintenant se concentrer sur la stabilisation ASS, les settings
-production, les webhooks de paiement et la preparation des clients web/mobile.
+La suite peut maintenant se concentrer sur les autres endpoints ASS, les webhooks
+de paiement et la preparation des clients web/mobile.

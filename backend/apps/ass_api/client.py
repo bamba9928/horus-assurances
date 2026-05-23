@@ -33,9 +33,113 @@ class ASSAPIClient:
             contract=contract,
         )
 
+    def calculate_fleet_rc(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/rc.flotte.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_trailer_rc(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/remorque.rc.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_school_bus_rc(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/bus.ecole.rc",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_garage_rc(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/rc.garage",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_moto_rc(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/rc.moto",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
     def request_qrcode(self, payload, *, partner_group=None, contract=None):
         return self._post(
             "/api/v1/partner/qrcode.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_fleet_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/qrcode.flotte.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_trailer_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/remorque.qrcode.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_school_bus_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/bus.ecole.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_garage_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/garage.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def request_moto_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/moto.request",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def get_qrcode_stock(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/stock.qr",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def cancel_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/partner/qrcode.cancel",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def check_qrcode_status(self, payload, *, partner_group=None, contract=None):
+        return self._post(
+            "/api/v1/promobile/check.qrcode.status",
             payload,
             partner_group=partner_group,
             contract=contract,

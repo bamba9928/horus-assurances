@@ -127,7 +127,7 @@ CORS_ALLOW_CREDENTIALS = config("CORS_ALLOW_CREDENTIALS", default=True, cast=boo
 SPECTACULAR_SETTINGS = {
     "TITLE": "Horus Assurances API",
     "DESCRIPTION": "API backend Django pour Horus Assurances.",
-    "VERSION": "0.11.0",
+    "VERSION": "0.12.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
 

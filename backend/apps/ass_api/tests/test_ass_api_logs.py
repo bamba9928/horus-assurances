@@ -41,6 +41,61 @@ def test_sanitize_value_masks_sensitive_values(payload):
     assert REDACTED in result
 
 
+@pytest.mark.parametrize(
+    ("method_name", "endpoint"),
+    [
+        ("calculate_rc", "/api/v1/partner/rc.request"),
+        ("calculate_fleet_rc", "/api/v1/partner/rc.flotte.request"),
+        ("calculate_trailer_rc", "/api/v1/partner/remorque.rc.request"),
+        ("calculate_school_bus_rc", "/api/v1/partner/bus.ecole.rc"),
+        ("calculate_garage_rc", "/api/v1/partner/rc.garage"),
+        ("calculate_moto_rc", "/api/v1/partner/rc.moto"),
+        ("request_qrcode", "/api/v1/partner/qrcode.request"),
+        ("request_fleet_qrcode", "/api/v1/partner/qrcode.flotte.request"),
+        ("request_trailer_qrcode", "/api/v1/partner/remorque.qrcode.request"),
+        ("request_school_bus_qrcode", "/api/v1/partner/bus.ecole.request"),
+        ("request_garage_qrcode", "/api/v1/partner/garage.request"),
+        ("request_moto_qrcode", "/api/v1/partner/moto.request"),
+        ("get_qrcode_stock", "/api/v1/partner/stock.qr"),
+        ("cancel_qrcode", "/api/v1/partner/qrcode.cancel"),
+        ("check_qrcode_status", "/api/v1/promobile/check.qrcode.status"),
+        ("verify_registration", "/api/v1/partner/verif.immatriculation"),
+    ],
+)
+def test_ass_client_partner_methods_use_documented_endpoints(
+    method_name,
+    endpoint,
+    monkeypatch,
+):
+    calls = []
+    client = ASSAPIClient(base_url="https://ass.example.test", username="u", password="p")
+
+    def fake_post(received_endpoint, payload, *, partner_group=None, contract=None):
+        calls.append(
+            {
+                "endpoint": received_endpoint,
+                "payload": payload,
+                "partner_group": partner_group,
+                "contract": contract,
+            }
+        )
+        return {"ok": True}
+
+    monkeypatch.setattr(client, "_post", fake_post)
+
+    result = getattr(client, method_name)({"request": "payload"})
+
+    assert result == {"ok": True}
+    assert calls == [
+        {
+            "endpoint": endpoint,
+            "payload": {"request": "payload"},
+            "partner_group": None,
+            "contract": None,
+        }
+    ]
+
+
 @pytest.mark.django_db
 @override_settings(
     ASS_BASE_URL="https://ass.example.test",

@@ -9,8 +9,17 @@ from apps.notifications.models import Notification
 from apps.notifications.services import create_notifications_for_group
 from apps.payments.models import Payment
 
-from .ass_payloads import build_ass_qrcode_payload
+from .ass_payloads import build_ass_qrcode_payload_for_product
 from .models import Contract
+
+
+QRCODE_METHOD_BY_PRODUCT_TYPE = {
+    "AUTO": "request_qrcode",
+    "MOTO": "request_moto_qrcode",
+    "FLEET": "request_fleet_qrcode",
+    "TRAILER": "request_trailer_qrcode",
+    "GARAGE": "request_garage_qrcode",
+}
 
 
 class ASSContractIssuer:
@@ -18,8 +27,13 @@ class ASSContractIssuer:
         self.client = client or ASSAPIClient()
 
     def issue(self, contract):
-        payload = build_ass_qrcode_payload(contract)
-        return self.client.request_qrcode(
+        payload = build_ass_qrcode_payload_for_product(contract)
+        method_name = QRCODE_METHOD_BY_PRODUCT_TYPE.get(
+            contract.quote.product_type,
+            "request_qrcode",
+        )
+        request_method = getattr(self.client, method_name)
+        return request_method(
             payload,
             partner_group=contract.partner_group,
             contract=contract,
@@ -164,6 +178,18 @@ def _apply_ass_response(contract, ass_response):
             "referenceAttestation",
             "reference_attestation",
             "attestation",
+            "attestationUrl",
+            "attestation_url",
+            "attestationLink",
+            "attestation_link",
+            "urlAttestation",
+            "lienAttestation",
+            "lienAttestationPdf",
+            "attestationPdfUrl",
+            "documentUrl",
+            "policeUrl",
+            "urlPolice",
+            "lienPolice",
         ),
     )
     qr_code_reference = _find_value(
@@ -176,6 +202,17 @@ def _apply_ass_response(contract, ass_response):
             "qrCode",
             "codeQr",
             "code_qr",
+            "qrCodeUrl",
+            "qr_code_url",
+            "qrcodeUrl",
+            "qrcode_url",
+            "urlQrCode",
+            "urlQrcode",
+            "lienQrCode",
+            "lienQrcode",
+            "qrCodeLink",
+            "qrcodeLink",
+            "diotaliQrLink",
         ),
     )
 
