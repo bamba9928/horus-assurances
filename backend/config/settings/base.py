@@ -129,6 +129,12 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API backend Django pour Horus Assurances.",
     "VERSION": "0.12.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "ContractStatusEnum": "apps.contracts.models.Contract.Status",
+        "PaymentStatusEnum": "apps.payments.models.Payment.Status",
+        "QuoteStatusEnum": "apps.quotes.models.Quote.Status",
+        "PaymentWebhookEventStatusEnum": "apps.payments.models.PaymentWebhookEvent.Status",
+    },
 }
 
 SIMPLE_JWT = {
@@ -142,3 +148,21 @@ ASS_BASE_URL = config("ASS_BASE_URL", default="")
 ASS_USERNAME = config("ASS_USERNAME", default="")
 ASS_PASSWORD = config("ASS_PASSWORD", default="")
 ASS_TIMEOUT_SECONDS = config("ASS_TIMEOUT_SECONDS", default=30, cast=int)
+
+WAVE_WEBHOOK_SECRET = config("WAVE_WEBHOOK_SECRET", default="")
+ORANGE_MONEY_WEBHOOK_SECRET = config("ORANGE_MONEY_WEBHOOK_SECRET", default="")
+PAYMENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = config(
+    "PAYMENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS",
+    default=300,
+    cast=int,
+)
+
+CLIENT_ACCESS_TOKEN_TTL_DAYS = config(
+    "CLIENT_ACCESS_TOKEN_TTL_DAYS",
+    default=30,
+    cast=int,
+)
+CLIENT_PORTAL_BASE_URL = config(
+    "CLIENT_PORTAL_BASE_URL",
+    default="http://localhost:3000",
+)

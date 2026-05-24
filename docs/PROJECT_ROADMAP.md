@@ -5,8 +5,8 @@ jour a chaque phase importante, apres les changements de code et les tests.
 
 ## Etat actuel
 
-Backend Django REST Framework avance jusqu'a la phase 13 terminee et la phase
-14 partielle cote integration ASS.
+Backend Django REST Framework avance jusqu'a la phase 16 partielle cote espace
+client.
 
 Stack cible :
 
@@ -121,11 +121,48 @@ Stack cible :
   - `makemigrations --check --dry-run`
   - `pytest`
   - `manage.py check --deploy`
+- Phase 15 demarree :
+  - endpoints publics `POST /api/v1/webhooks/wave/` et
+    `POST /api/v1/webhooks/orange-money/`
+  - verification HMAC-SHA256 Wave via `Wave-Signature`
+  - verification HMAC-SHA256 Orange via `digest`, `x-correlation-id` et
+    `x-request-date`
+  - protection anti-rejeu par tolerance de timestamp configurable
+  - journal `PaymentWebhookEvent`
+  - idempotence par couple provider / event id
+  - confirmation automatique des paiements externes
+  - marquage automatique `FAILED` / `CANCELLED` selon statut provider
+  - controle montant/devise avant confirmation
+- Phase 16 demarree :
+  - `Client` reste une entite metier rattachee a un groupe/apporteur, distincte
+    des utilisateurs internes
+  - jetons client revocables, rotatifs et hashes via `ClientAccessToken`
+  - jetons lies a `Client`, `Contract`, `PartnerGroup` et utilisateur createur
+  - champs `expires_at`, `revoked_at`, `used_at` et `delivery_channel`
+  - generation interne de lien court signe :
+    `POST /api/v1/client-access-tokens/`
+  - API interne de revocation, renouvellement et renvoi de lien :
+    `POST /api/v1/client-access-tokens/{id}/revoke/`
+    `POST /api/v1/client-access-tokens/{id}/renew/`
+    `POST /api/v1/client-access-tokens/{id}/resend-link/`
+  - authentification espace client via `Authorization: Client-Token <token>`
+  - endpoint profil client `GET /api/v1/client-space/me/`
+  - endpoint consultation contrats client `GET /api/v1/client-space/contracts/`
+  - endpoint documents contrat client
+    `GET /api/v1/client-space/contracts/{id}/documents/`
+  - endpoints de redirection attestation et carte brune
+  - endpoint notifications client `GET /api/v1/client-space/notifications/`
+  - marquage lecture unitaire et global des notifications client
+  - notifications client creees lors de la confirmation paiement et de
+    l'emission contrat
+  - audit logs sur creation, envoi simule, utilisation, revocation et rotation
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `182 passed`
+- Suite complete backend : `205 passed`
 - Tests cibles ASS apres ajout Bus Ecole et commande RC sandbox : `44 passed`
+- Tests cibles paiements phase 15 : `26 passed`
+- Tests cibles espace client phase 16 : `84 passed`
 - `manage.py check` : OK
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
@@ -231,7 +268,9 @@ Reste a faire :
 
 Objectif : passer des paiements modelises aux webhooks reels.
 
-Taches :
+Etat : demarree, socle webhook local implemente et teste.
+
+Fait :
 
 - Wave webhook.
 - Orange Money webhook.
@@ -241,18 +280,44 @@ Taches :
 - Mise a jour automatique des statuts.
 - Tests de securite.
 
+Reste a faire :
+
+- Confirmer avec les contrats providers les noms exacts des champs de reference
+  transactionnelle Wave et Orange Money.
+- Tester un vrai callback sandbox Wave.
+- Tester un vrai callback sandbox Orange Money.
+- Ajouter, si necessaire, des adaptateurs de payload par pays/provider si les
+  webhooks reels different du format generique documente.
+
 ### Phase 16 - Espace client
 
 Objectif : permettre au client final de consulter ses documents.
 
-Taches :
+Etat : demarree, socle backend local implemente et teste.
+
+Fait :
 
 - Clarifier si `Client` devient un utilisateur connecte ou reste une entite
   rattachee a un apporteur.
+- Modele `ClientAccessToken` lie au client, contrat, groupe et createur.
+- Stockage uniquement du hash du jeton.
+- Expiration, revocation, utilisation et canal de remise.
+- Services de generation, verification, revocation, rotation et renvoi simule.
+- API interne admin/apporteur pour creer, revoquer, renouveler et renvoyer un
+  lien.
 - Endpoint consultation contrats client.
 - Telechargement attestation.
 - Telechargement carte brune.
 - Notifications client.
+- Tests de securite : expiration, revocation, autre groupe, rotation, absence de
+  stockage clair et refus document sans jeton valide.
+
+Reste a faire :
+
+- Brancher un vrai provider SMS/email apres validation du format de message.
+- Ajouter OTP pour les actions sensibles comme le telechargement attestation ou
+  carte brune.
+- Ajouter les ecrans frontend/mobile de consultation client.
 
 ### Phase 17 - Frontend Next.js
 

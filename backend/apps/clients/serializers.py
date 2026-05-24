@@ -1,7 +1,10 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import Client
+from apps.contracts.models import Contract
+from apps.notifications.models import Notification
+
+from .models import Client, ClientAccessToken
 
 User = get_user_model()
 
@@ -117,3 +120,133 @@ class ClientSerializer(serializers.ModelSerializer):
         instance.full_clean()
         instance.save()
         return instance
+
+
+class ClientAccessTokenSerializer(serializers.ModelSerializer):
+    client_display_name = serializers.CharField(source="client.display_name", read_only=True)
+    contract_number = serializers.CharField(source="contract.contract_number", read_only=True)
+    partner_group_name = serializers.CharField(source="partner_group.name", read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ClientAccessToken
+        fields = [
+            "id",
+            "partner_group",
+            "partner_group_name",
+            "client",
+            "client_display_name",
+            "contract",
+            "contract_number",
+            "delivery_channel",
+            "created_by",
+            "rotated_from",
+            "expires_at",
+            "revoked_at",
+            "used_at",
+            "is_active",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class ClientAccessTokenCreateSerializer(serializers.Serializer):
+    client = serializers.PrimaryKeyRelatedField(queryset=Client.objects.all())
+    contract = serializers.PrimaryKeyRelatedField(queryset=Contract.objects.all())
+    delivery_channel = serializers.ChoiceField(
+        choices=ClientAccessToken.DeliveryChannel.choices,
+        default=ClientAccessToken.DeliveryChannel.MANUAL,
+    )
+    expires_in_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
+
+
+class ClientAccessTokenRenewSerializer(serializers.Serializer):
+    expires_in_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
+
+
+class ClientAccessTokenResponseSerializer(serializers.Serializer):
+    access_token = serializers.DictField(read_only=True)
+    token = serializers.CharField(read_only=True)
+    access_url = serializers.CharField(read_only=True)
+    mock_delivery = serializers.BooleanField(read_only=True)
+    delivery_channel = serializers.CharField(read_only=True)
+    destination = serializers.CharField(read_only=True, allow_blank=True)
+    expires_at = serializers.DateTimeField(read_only=True)
+
+
+class ClientPortalProfileSerializer(serializers.ModelSerializer):
+    display_name = serializers.CharField(read_only=True)
+    partner_group_name = serializers.CharField(source="partner_group.name", read_only=True)
+
+    class Meta:
+        model = Client
+        fields = [
+            "id",
+            "display_name",
+            "client_type",
+            "first_name",
+            "last_name",
+            "company_name",
+            "email",
+            "phone",
+            "address",
+            "partner_group_name",
+        ]
+        read_only_fields = fields
+
+
+class ClientPortalContractSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(read_only=True)
+    vehicle_registration_number = serializers.CharField(
+        source="vehicle.registration_number",
+        read_only=True,
+    )
+    vehicle_brand = serializers.CharField(source="vehicle.brand", read_only=True)
+    vehicle_model = serializers.CharField(source="vehicle.model", read_only=True)
+    product_type = serializers.CharField(source="quote.product_type", read_only=True)
+    total_amount = serializers.DecimalField(
+        source="quote.total_amount",
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Contract
+        fields = [
+            "id",
+            "status",
+            "contract_number",
+            "attestation_reference",
+            "qr_code_reference",
+            "attestation_url",
+            "carte_brune_url",
+            "issued_at",
+            "created_at",
+            "vehicle_registration_number",
+            "vehicle_brand",
+            "vehicle_model",
+            "product_type",
+            "total_amount",
+        ]
+        read_only_fields = fields
+
+
+class ClientPortalNotificationSerializer(serializers.ModelSerializer):
+    is_read = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            "id",
+            "notification_type",
+            "title",
+            "message",
+            "target_type",
+            "target_id",
+            "metadata",
+            "is_read",
+            "read_at",
+            "created_at",
+        ]
+        read_only_fields = fields

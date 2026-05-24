@@ -29,6 +29,33 @@ def create_notification(
     )
 
 
+def create_client_notification(
+    *,
+    client,
+    notification_type,
+    title,
+    message="",
+    partner_group=None,
+    target=None,
+    metadata=None,
+):
+    if client is None or not client.is_active:
+        return None
+    notification = Notification(
+        partner_group=partner_group or client.partner_group,
+        client=client,
+        notification_type=notification_type,
+        title=title,
+        message=message,
+        target_type=_target_type(target),
+        target_id=_target_id(target),
+        metadata=metadata or {},
+    )
+    notification.full_clean()
+    notification.save()
+    return notification
+
+
 def create_notifications_for_group(
     *,
     partner_group,

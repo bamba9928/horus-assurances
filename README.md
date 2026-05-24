@@ -53,10 +53,15 @@ Des aliases compatibles avec le prompt initial sont aussi exposes sous `/api/`.
 - `/api/users/`
 - `/api/contributors/`
 - `/api/clients/`
+- `/api/client-space/me/`
+- `/api/client-space/contracts/`
+- `/api/client-space/notifications/`
 - `/api/vehicles/`
 - `/api/quotes/`
 - `/api/contracts/`
 - `/api/payments/`
+- `/api/webhooks/wave/`
+- `/api/webhooks/orange-money/`
 - `/api/commissions/`
 - `/api/dashboard/`
 - `/api/schema/`
@@ -92,6 +97,11 @@ Variables importantes :
 - `ASS_BASE_URL`
 - `ASS_USERNAME`
 - `ASS_PASSWORD`
+- `WAVE_WEBHOOK_SECRET`
+- `ORANGE_MONEY_WEBHOOK_SECRET`
+- `PAYMENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS`
+- `CLIENT_ACCESS_TOKEN_TTL_DAYS`
+- `CLIENT_PORTAL_BASE_URL`
 
 ## Tests
 
@@ -153,12 +163,64 @@ Ces commandes affichent les payloads sans appel externe par defaut. L'appel ASS
 necessite `--confirm-external-ass-call` et ne persiste pas le resultat sur le
 devis ou le contrat.
 
+## Webhooks paiements
+
+Deux endpoints publics recoivent les confirmations externes :
+
+- `/api/v1/webhooks/wave/`
+- `/api/v1/webhooks/orange-money/`
+
+Ils ne demandent pas de JWT, mais refusent les requetes sans signature valide.
+Wave utilise `Wave-Signature` avec HMAC-SHA256 et timestamp. Orange Money
+utilise le header `digest` HMAC-SHA256 avec `x-correlation-id` et
+`x-request-date`. Les evenements sont journalises, deduplices par provider et
+event id, puis appliquent automatiquement les statuts des paiements.
+
+## Espace client
+
+Le client final reste une entite metier `Client`, distincte des utilisateurs
+internes. Un utilisateur interne autorise peut creer un lien court signe, lie a
+un contrat, via :
+
+```powershell
+POST /api/v1/client-access-tokens/
+```
+
+Le jeton est stocke uniquement sous forme hashee. Le lien et le jeton brut sont
+retournes une seule fois, pour envoi SMS/email futur ou remise manuelle dans le
+MVP. Le jeton doit ensuite etre transmis avec :
+
+```http
+Authorization: Client-Token <token>
+```
+
+Endpoints disponibles :
+
+- `GET /api/v1/client-access-tokens/`
+- `POST /api/v1/client-access-tokens/`
+- `POST /api/v1/client-access-tokens/{id}/revoke/`
+- `POST /api/v1/client-access-tokens/{id}/renew/`
+- `POST /api/v1/client-access-tokens/{id}/resend-link/`
+- `GET /api/v1/client-space/me/`
+- `GET /api/v1/client-space/contracts/`
+- `GET /api/v1/client-space/contracts/{id}/documents/`
+- `GET /api/v1/client-space/contracts/{id}/documents/attestation/`
+- `GET /api/v1/client-space/contracts/{id}/documents/carte-brune/`
+- `GET /api/v1/client-space/notifications/`
+- `POST /api/v1/client-space/notifications/{id}/mark-read/`
+- `POST /api/v1/client-space/notifications/mark-all-read/`
+
+Le renvoi de lien ne contacte encore aucun vrai service SMS/email. Par securite,
+il genere un nouveau jeton et revoque l'ancien, car le jeton clair n'est jamais
+stocke.
+
 ## Etat de phase
 
-Le depot est aligne sur une phase 14 partielle. Le backend expose les endpoints
+Le depot est aligne sur une phase 16 partielle. Le backend expose les endpoints
 attendus par le prompt initial, conserve les routes versionnees deja utilisees
 par les tests et dispose d'un calcul RC ASS optionnel pour les devis avec
 routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage.
 
 La suite peut maintenant se concentrer sur les validations sandbox ASS restantes,
-les webhooks de paiement et la preparation des clients web/mobile.
+les confirmations contractuelles des providers de paiement et la preparation des
+clients web/mobile.

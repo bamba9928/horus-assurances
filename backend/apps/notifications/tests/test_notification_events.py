@@ -125,13 +125,19 @@ def test_confirm_payment_creates_notifications_for_contributor_and_group_admin(
     )
 
     notifications = Notification.objects.filter(
-        notification_type=Notification.Type.PAYMENT_CONFIRMED
+        notification_type=Notification.Type.PAYMENT_CONFIRMED,
+        recipient__isnull=False,
+    )
+    client_notifications = Notification.objects.filter(
+        notification_type=Notification.Type.PAYMENT_CONFIRMED,
+        client=notification_event_context["quote"].client,
     )
     assert response.status_code == status.HTTP_200_OK
     assert {item.recipient for item in notifications} == {
         notification_event_context["contributor"],
         notification_event_context["group_admin"],
     }
+    assert client_notifications.count() == 1
 
 
 @pytest.mark.django_db
@@ -153,7 +159,12 @@ def test_issue_contract_creates_notifications_for_contributor_and_group_admin(
     )
 
     notifications = Notification.objects.filter(
-        notification_type=Notification.Type.CONTRACT_ISSUED
+        notification_type=Notification.Type.CONTRACT_ISSUED,
+        recipient__isnull=False,
+    )
+    client_notifications = Notification.objects.filter(
+        notification_type=Notification.Type.CONTRACT_ISSUED,
+        client=notification_event_context["quote"].client,
     )
     assert response.status_code == status.HTTP_200_OK
     assert {item.recipient for item in notifications} == {
@@ -161,6 +172,7 @@ def test_issue_contract_creates_notifications_for_contributor_and_group_admin(
         notification_event_context["group_admin"],
     }
     assert notifications.first().metadata["contract_number"] == "NOTIF-CONTRACT-001"
+    assert client_notifications.count() == 1
 
 
 @pytest.mark.django_db

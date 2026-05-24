@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
+from apps.ass_api.sanitizers import sanitize_error_message, sanitize_value
+
 
 class GroupWallet(models.Model):
     partner_group = models.OneToOneField(
@@ -203,3 +205,55 @@ class Payment(models.Model):
                 raise ValidationError(
                     {"created_by": "Le createur doit appartenir au groupe du paiement."}
                 )
+
+
+class PaymentWebhookEvent(models.Model):
+    class Provider(models.TextChoices):
+        WAVE = "WAVE", "Wave"
+        ORANGE_MONEY = "ORANGE_MONEY", "Orange Money"
+
+    class Status(models.TextChoices):
+        RECEIVED = "RECEIVED", "Recu"
+        PROCESSED = "PROCESSED", "Traite"
+        IGNORED = "IGNORED", "Ignore"
+        FAILED = "FAILED", "Echoue"
+
+    provider = models.CharField(max_length=20, choices=Provider.choices)
+    event_id = models.CharField(max_length=160)
+    event_type = models.CharField(max_length=120, blank=True)
+    provider_reference = models.CharField(max_length=160, blank=True)
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.SET_NULL,
+        related_name="webhook_events",
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.RECEIVED,
+    )
+    payload = models.JSONField(default=dict, blank=True)
+    headers = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-received_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "event_id"],
+                name="payment_webhook_unique_event_per_provider",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider} {self.event_id} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        self.payload = sanitize_value(self.payload or {})
+        self.headers = sanitize_value(self.headers or {})
+        self.error_message = sanitize_error_message(self.error_message)
+        super().save(*args, **kwargs)

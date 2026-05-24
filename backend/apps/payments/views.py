@@ -1,10 +1,14 @@
-from rest_framework import mixins, status, viewsets
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
+from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.groups.models import PartnerGroup
 
-from .models import GroupWallet, Payment, WalletTransaction
+from .models import GroupWallet, Payment, PaymentWebhookEvent, WalletTransaction
 from .serializers import (
     GroupWalletSerializer,
     PaymentConfirmSerializer,
@@ -13,6 +17,66 @@ from .serializers import (
     WalletTransactionSerializer,
 )
 from .services import confirm_payment, credit_wallet, debit_wallet, get_or_create_wallet
+from .webhooks import (
+    WebhookConfigurationError,
+    WebhookProcessingError,
+    WebhookSignatureError,
+    process_orange_money_webhook,
+    process_wave_webhook,
+)
+
+
+class PaymentWebhookView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    provider = None
+
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={200: OpenApiTypes.OBJECT},
+        auth=[],
+    )
+    def post(self, request):
+        try:
+            result = self._process(request)
+        except WebhookSignatureError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+        except WebhookConfigurationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except WebhookProcessingError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except serializers.ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "status": "duplicate" if result.duplicate else result.event.status,
+                "event_id": result.event.event_id,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _process(self, request):
+        if self.provider == PaymentWebhookEvent.Provider.WAVE:
+            return process_wave_webhook(
+                raw_body=request.body,
+                headers=request.headers,
+            )
+        if self.provider == PaymentWebhookEvent.Provider.ORANGE_MONEY:
+            return process_orange_money_webhook(
+                raw_body=request.body,
+                headers=request.headers,
+            )
+        raise WebhookProcessingError("Provider webhook inconnu.")
+
+
+class WaveWebhookView(PaymentWebhookView):
+    provider = PaymentWebhookEvent.Provider.WAVE
+
+
+class OrangeMoneyWebhookView(PaymentWebhookView):
+    provider = PaymentWebhookEvent.Provider.ORANGE_MONEY
 
 
 class GroupWalletViewSet(viewsets.ReadOnlyModelViewSet):

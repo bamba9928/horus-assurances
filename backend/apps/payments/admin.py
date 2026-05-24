@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import GroupWallet, Payment, WalletTransaction
+from .models import GroupWallet, Payment, PaymentWebhookEvent, WalletTransaction
 
 
 @admin.register(GroupWallet)
@@ -46,4 +46,38 @@ class PaymentAdmin(admin.ModelAdmin):
         "contributor",
         "created_by",
         "wallet_transaction",
+    ]
+
+
+@admin.register(PaymentWebhookEvent)
+class PaymentWebhookEventAdmin(admin.ModelAdmin):
+    list_display = [
+        "provider",
+        "event_id",
+        "event_type",
+        "provider_reference",
+        "payment",
+        "status",
+        "received_at",
+        "processed_at",
+    ]
+    list_filter = ["provider", "status"]
+    search_fields = [
+        "event_id",
+        "event_type",
+        "provider_reference",
+        "payment__external_reference",
+    ]
+    readonly_fields = [
+        "provider",
+        "event_id",
+        "event_type",
+        "provider_reference",
+        "payment",
+        "status",
+        "payload",
+        "headers",
+        "error_message",
+        "received_at",
+        "processed_at",
     ]

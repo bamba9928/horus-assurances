@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class Client(models.Model):
@@ -94,3 +95,84 @@ class Client(models.Model):
                 raise ValidationError(
                     {"created_by": "Le createur doit appartenir au groupe du client."}
                 )
+
+
+class ClientAccessToken(models.Model):
+    class DeliveryChannel(models.TextChoices):
+        SMS = "SMS", "SMS"
+        EMAIL = "EMAIL", "Email"
+        MANUAL = "MANUAL", "Manuel"
+
+    partner_group = models.ForeignKey(
+        "groups.PartnerGroup",
+        on_delete=models.PROTECT,
+        related_name="client_access_tokens",
+    )
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="access_tokens",
+    )
+    contract = models.ForeignKey(
+        "contracts.Contract",
+        on_delete=models.CASCADE,
+        related_name="client_access_tokens",
+    )
+    token_hash = models.CharField(max_length=64, unique=True)
+    delivery_channel = models.CharField(
+        max_length=20,
+        choices=DeliveryChannel.choices,
+        default=DeliveryChannel.MANUAL,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_client_access_tokens",
+        null=True,
+        blank=True,
+    )
+    rotated_from = models.OneToOneField(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="rotated_to",
+        null=True,
+        blank=True,
+    )
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"Client access token {self.client_id}/{self.contract_id}"
+
+    @property
+    def is_active(self) -> bool:
+        return (
+            self.revoked_at is None
+            and self.expires_at > timezone.now()
+            and self.client.is_active
+        )
+
+    def clean(self):
+        super().clean()
+        if self.client_id and self.partner_group_id:
+            if self.client.partner_group_id != self.partner_group_id:
+                raise ValidationError(
+                    {"client": "Le client doit appartenir au groupe du jeton."}
+                )
+        if self.contract_id and self.partner_group_id:
+            if self.contract.partner_group_id != self.partner_group_id:
+                raise ValidationError(
+                    {"contract": "Le contrat doit appartenir au groupe du jeton."}
+                )
+        if self.client_id and self.contract_id:
+            if self.contract.client_id != self.client_id:
+                raise ValidationError(
+                    {"contract": "Le contrat doit appartenir au client du jeton."}
+                )
+        if self.client_id and not self.client.is_active and self.revoked_at is None:
+            raise ValidationError({"client": "Le client doit etre actif."})

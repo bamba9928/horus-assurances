@@ -12,6 +12,20 @@ class AuditLog(models.Model):
         CONTRACT_ISSUED = "CONTRACT_ISSUED", "Contrat emis"
         COMMISSION_GENERATED = "COMMISSION_GENERATED", "Commission generee"
         COMMISSION_PAID = "COMMISSION_PAID", "Commission payee"
+        CLIENT_ACCESS_TOKEN_CREATED = (
+            "CLIENT_ACCESS_TOKEN_CREATED",
+            "Jeton client cree",
+        )
+        CLIENT_ACCESS_LINK_SENT = "CLIENT_ACCESS_LINK_SENT", "Lien client envoye"
+        CLIENT_ACCESS_TOKEN_USED = "CLIENT_ACCESS_TOKEN_USED", "Jeton client utilise"
+        CLIENT_ACCESS_TOKEN_REVOKED = (
+            "CLIENT_ACCESS_TOKEN_REVOKED",
+            "Jeton client revoque",
+        )
+        CLIENT_ACCESS_TOKEN_ROTATED = (
+            "CLIENT_ACCESS_TOKEN_ROTATED",
+            "Jeton client renouvele",
+        )
 
     partner_group = models.ForeignKey(
         "groups.PartnerGroup",
