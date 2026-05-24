@@ -96,6 +96,14 @@ class RecordingASSClient:
             contract=contract,
         )
 
+    def request_school_bus_qrcode(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "request_school_bus_qrcode",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
     def request_garage_qrcode(self, payload, *, partner_group=None, contract=None):
         return self._record(
             "request_garage_qrcode",
@@ -220,6 +228,7 @@ def test_build_ass_qrcode_payload_uses_contract_data(ass_contract_context):
         (Quote.ProductType.MOTO, "request_moto_qrcode"),
         (Quote.ProductType.FLEET, "request_fleet_qrcode"),
         (Quote.ProductType.TRAILER, "request_trailer_qrcode"),
+        (Quote.ProductType.SCHOOL_BUS, "request_school_bus_qrcode"),
         (Quote.ProductType.GARAGE, "request_garage_qrcode"),
     ],
 )
@@ -297,6 +306,41 @@ def test_build_ass_qrcode_payload_for_garage_uses_card_count(
 
     assert payload["nombreCarte"] == 2
     assert payload["genre"] == "VP"
+
+
+@pytest.mark.django_db
+def test_build_ass_qrcode_payload_for_school_bus_uses_vehicle_payload(
+    ass_contract_context,
+):
+    Vehicle.objects.filter(pk=ass_contract_context["vehicle"].pk).update(
+        registration_number="DK-BUS-001",
+        brand="Mercedes",
+        model="Bus",
+        chassis_number="BUS-CHASSIS-001",
+        genre="BE-VTA",
+        fiscal_power=20,
+        seats=30,
+        new_value=Decimal("45000000.00"),
+        current_value=Decimal("35000000.00"),
+    )
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        product_type=Quote.ProductType.SCHOOL_BUS,
+        coverage_options=[],
+    )
+    ass_contract_context["contract"].refresh_from_db()
+
+    payload = build_ass_qrcode_payload_for_product(ass_contract_context["contract"])
+
+    assert payload["duree"] == 12
+    assert payload["periodicite"] == Quote.Periodicity.MONTHS
+    assert payload["cout_police"] == 3000
+    assert payload["remise_rc"] == 0
+    assert payload["responsabiliteCivile"] == 18688
+    assert payload["garanties"] == []
+    assert payload["vehicule"]["immatriculation"] == "DK-BUS-001"
+    assert payload["vehicule"]["genre"] == "BE-VTA"
+    assert payload["vehicule"]["nombrePlace"] == 30
+    assert payload["vehicule"]["puissanceFiscale"] == 20
 
 
 @pytest.mark.django_db

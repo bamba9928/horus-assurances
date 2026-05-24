@@ -135,17 +135,30 @@ L'emission des contrats route l'appel QR selon le type de produit du devis :
 - `MOTO` : `moto.request`
 - `FLEET` : `qrcode.flotte.request`
 - `TRAILER` : `remorque.qrcode.request`
+- `SCHOOL_BUS` : `bus.ecole.request`
 - `GARAGE` : `garage.request`
 
 Les reponses ASS/Diotali peuvent fournir deux liens documentaires : un lien
 attestation et un lien carte brune. Le backend les expose dans les champs dedies
 `attestation_url` et `carte_brune_url`, sans les melanger avec les references ASS.
 
+Pour valider prudemment les payloads ASS en sandbox depuis une base locale :
+
+```powershell
+python manage.py validate_ass_sandbox_quote_calculation <quote_id>
+python manage.py validate_ass_sandbox_issue <contract_id>
+```
+
+Ces commandes affichent les payloads sans appel externe par defaut. L'appel ASS
+necessite `--confirm-external-ass-call` et ne persiste pas le resultat sur le
+devis ou le contrat.
+
 ## Etat de phase
 
-Le depot est aligne sur `PHASE 12`. Le backend expose les endpoints attendus par
-le prompt initial, conserve les routes versionnees deja utilisees par les tests
-et dispose d'un calcul RC ASS optionnel pour les devis.
+Le depot est aligne sur une phase 14 partielle. Le backend expose les endpoints
+attendus par le prompt initial, conserve les routes versionnees deja utilisees
+par les tests et dispose d'un calcul RC ASS optionnel pour les devis avec
+routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage.
 
-La suite peut maintenant se concentrer sur les autres endpoints ASS, les webhooks
-de paiement et la preparation des clients web/mobile.
+La suite peut maintenant se concentrer sur les validations sandbox ASS restantes,
+les webhooks de paiement et la preparation des clients web/mobile.

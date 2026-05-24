@@ -18,6 +18,7 @@ QRCODE_METHOD_BY_PRODUCT_TYPE = {
     "MOTO": "request_moto_qrcode",
     "FLEET": "request_fleet_qrcode",
     "TRAILER": "request_trailer_qrcode",
+    "SCHOOL_BUS": "request_school_bus_qrcode",
     "GARAGE": "request_garage_qrcode",
 }
 
@@ -26,6 +27,7 @@ QRCODE_ENDPOINT_BY_PRODUCT_TYPE = {
     "MOTO": "/api/v1/partner/moto.request",
     "FLEET": "/api/v1/partner/qrcode.flotte.request",
     "TRAILER": "/api/v1/partner/remorque.qrcode.request",
+    "SCHOOL_BUS": "/api/v1/partner/bus.ecole.request",
     "GARAGE": "/api/v1/partner/garage.request",
 }
 

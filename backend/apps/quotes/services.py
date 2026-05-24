@@ -15,6 +15,7 @@ ASS_RC_METHOD_BY_PRODUCT_TYPE = {
     Quote.ProductType.MOTO: "calculate_moto_rc",
     Quote.ProductType.FLEET: "calculate_fleet_rc",
     Quote.ProductType.TRAILER: "calculate_trailer_rc",
+    Quote.ProductType.SCHOOL_BUS: "calculate_school_bus_rc",
     Quote.ProductType.GARAGE: "calculate_garage_rc",
 }
 
@@ -23,6 +24,7 @@ ASS_RC_ENDPOINT_BY_PRODUCT_TYPE = {
     Quote.ProductType.MOTO: "/api/v1/partner/rc.moto",
     Quote.ProductType.FLEET: "/api/v1/partner/rc.flotte.request",
     Quote.ProductType.TRAILER: "/api/v1/partner/remorque.rc.request",
+    Quote.ProductType.SCHOOL_BUS: "/api/v1/partner/bus.ecole.rc",
     Quote.ProductType.GARAGE: "/api/v1/partner/rc.garage",
 }
 

@@ -75,17 +75,26 @@ Stack cible :
   - refuse les URLs qui ne ressemblent pas a une sandbox sauf confirmation
     explicite `--allow-non-sandbox-base-url`
   - ne marque pas le contrat comme emis apres l'appel de validation
+- Commande sandbox RC protegee :
+  - `python manage.py validate_ass_sandbox_quote_calculation <quote_id>`
+  - affiche le payload de calcul RC sans appel externe par defaut
+  - exige `--confirm-external-ass-call` pour appeler ASS
+  - refuse les URLs qui ne ressemblent pas a une sandbox sauf confirmation
+    explicite `--allow-non-sandbox-base-url`
+  - ne persiste pas les montants RC sur le devis apres l'appel de validation
 - Routage du calcul RC ASS par type de produit :
   - `AUTO` -> `rc.request`
   - `MOTO` -> `rc.moto`
   - `FLEET` -> `rc.flotte.request`
   - `TRAILER` -> `remorque.rc.request`
+  - `SCHOOL_BUS` -> `bus.ecole.rc`
   - `GARAGE` -> `rc.garage`
 - Routage emission QR par type de produit :
   - `AUTO`
   - `MOTO`
   - `FLEET`
   - `TRAILER`
+  - `SCHOOL_BUS`
   - `GARAGE`
 - Champs documentaires Diotali :
   - `attestation_url`
@@ -104,6 +113,7 @@ Stack cible :
 - Payloads ASS avances couverts par tests unitaires locaux :
   - Moto : `cylindre`, `usage`, `nombrePlace`
   - Remorque : `referenceVehicule`
+  - Bus Ecole : champs vehicule standards, `nombrePlace`, `puissanceFiscale`
   - Garage : `nombreCarte`
   - Flotte : `referenceFlotte` et `requests`
 - CI GitHub Actions pour le backend :
@@ -114,7 +124,8 @@ Stack cible :
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `175 passed`
+- Suite complete backend : `182 passed`
+- Tests cibles ASS apres ajout Bus Ecole et commande RC sandbox : `44 passed`
 - `manage.py check` : OK
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
@@ -191,22 +202,30 @@ Fait :
   reference fournie dans `ass_product_data`; sandbox confirmee avec la
   `referenceExterne` du tracteur AUTO et RC a `0` pour la premiere remorque.
 - Garage : payloads RC/QR gerent `nombreCarte`.
+- Bus Ecole : produit `SCHOOL_BUS` ajoute cote devis, avec routage RC
+  `bus.ecole.rc`, routage QR `bus.ecole.request` et payloads locaux alignes sur
+  la documentation ASS fournie.
 - Flotte : payload RC accepte `referenceFlotte` et `requests`, avec fallback
   mono-vehicule local.
 - Tests payload/routage ajoutes pour calcul RC et emission QR.
 - Previsualisation RC/QR securisee ajoutee pour verifier les payloads produits
   avant appel sandbox.
+- Commande locale de validation sandbox RC ajoutee pour tester les calculs ASS
+  produit sans modifier les devis.
 
 Reste a faire :
 
-- Valider les payloads `GARAGE`, `FLEET` en sandbox ASS sans emission de
-  production.
+- Valider les payloads `GARAGE`, `FLEET`, `SCHOOL_BUS` en sandbox ASS sans
+  emission de production.
 - Confirmer les champs exacts a exposer dans l'API publique au lieu de garder
   seulement `ass_product_data`.
 - Flotte : modeliser proprement le multi-vehicules si le produit doit gerer de
   vraies flottes dans Horus.
 - Garage : confirmer les genres metier attendus et la valeur par defaut de
   `nombreCarte`.
+- Bus Ecole : confirmer en sandbox les genres `BE-VTA` / `BE-VTCATP` et la
+  tolerance ASS vis-a-vis des champs optionnels presents dans la collection
+  Postman v1.1.
 
 ### Phase 15 - Paiements externes
 

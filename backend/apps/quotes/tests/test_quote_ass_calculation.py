@@ -1,9 +1,13 @@
 import json
 from decimal import Decimal
+from io import StringIO
 from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import override_settings
 from rest_framework import serializers, status
 from rest_framework.test import APIClient
 
@@ -84,6 +88,14 @@ class RecordingASSClient:
     def calculate_trailer_rc(self, payload, *, partner_group=None, contract=None):
         return self._record(
             "calculate_trailer_rc",
+            payload,
+            partner_group=partner_group,
+            contract=contract,
+        )
+
+    def calculate_school_bus_rc(self, payload, *, partner_group=None, contract=None):
+        return self._record(
+            "calculate_school_bus_rc",
             payload,
             partner_group=partner_group,
             contract=contract,
@@ -205,6 +217,41 @@ def test_build_ass_rc_payload_for_moto_uses_product_data(ass_quote_context):
 
 
 @pytest.mark.django_db
+def test_build_ass_rc_payload_for_school_bus_uses_vehicle_data(ass_quote_context):
+    Vehicle.objects.filter(pk=ass_quote_context["quote"].vehicle_id).update(
+        genre="BE-VTA",
+        fiscal_power=20,
+        seats=30,
+        new_value=Decimal("45000000.00"),
+        current_value=Decimal("35000000.00"),
+    )
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        product_type=Quote.ProductType.SCHOOL_BUS,
+        coverage_options=[],
+    )
+    ass_quote_context["quote"].refresh_from_db()
+
+    payload = build_ass_rc_payload_for_product(
+        ass_quote_context["quote"],
+        rc_discount_amount=Decimal("500.00"),
+    )
+
+    assert payload == {
+        "duree": 3,
+        "energie": "ESSENCE",
+        "periodicite": "MOIS",
+        "genre": "BE-VTA",
+        "nombrePlace": 30,
+        "puissanceFiscale": 20,
+        "cout_police": 3000,
+        "remise_rc": 500,
+        "valeurNeuve": 45000000,
+        "valeurActuelle": 35000000,
+        "garanties": [],
+    }
+
+
+@pytest.mark.django_db
 def test_build_ass_rc_payload_for_trailer_requires_reference_vehicle(
     ass_quote_context,
 ):
@@ -308,6 +355,7 @@ def test_calculate_quote_with_ass_updates_amounts_and_status(ass_quote_context):
             "calculate_trailer_rc",
             {"referenceVehicule": "DK-TRACT-001"},
         ),
+        (Quote.ProductType.SCHOOL_BUS, "calculate_school_bus_rc", {}),
         (
             Quote.ProductType.GARAGE,
             "calculate_garage_rc",
@@ -393,3 +441,101 @@ def test_quote_calculate_action_can_use_ass_service(ass_quote_context, monkeypat
     assert response.data["status"] == Quote.Status.CALCULATED
     assert response.data["civil_liability_amount"] == "18688.00"
     assert response.data["total_amount"] == "28000.00"
+
+
+@pytest.mark.django_db
+def test_validate_ass_sandbox_quote_command_previews_without_external_call(
+    ass_quote_context,
+):
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        product_type=Quote.ProductType.SCHOOL_BUS,
+    )
+    output = StringIO()
+
+    call_command(
+        "validate_ass_sandbox_quote_calculation",
+        ass_quote_context["quote"].id,
+        stdout=output,
+    )
+
+    command_output = output.getvalue()
+    assert "ass_payload_preview" in command_output
+    assert "/api/v1/partner/bus.ecole.rc" in command_output
+    assert "Aucun appel externe ASS effectue" in command_output
+
+
+@pytest.mark.django_db
+@override_settings(ASS_BASE_URL="https://manager.example.com")
+def test_validate_ass_sandbox_quote_command_blocks_non_sandbox_url(
+    ass_quote_context,
+    monkeypatch,
+):
+    class FailingASSClient:
+        def calculate_school_bus_rc(self, payload, *, partner_group=None, contract=None):
+            raise AssertionError("external ASS call should not be made")
+
+    monkeypatch.setattr(
+        "apps.quotes.management.commands.validate_ass_sandbox_quote_calculation.ASSAPIClient",
+        FailingASSClient,
+    )
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        product_type=Quote.ProductType.SCHOOL_BUS,
+    )
+
+    with pytest.raises(CommandError, match="ne ressemble pas a une sandbox"):
+        call_command(
+            "validate_ass_sandbox_quote_calculation",
+            ass_quote_context["quote"].id,
+            "--confirm-external-ass-call",
+            stdout=StringIO(),
+        )
+
+
+@pytest.mark.django_db
+@override_settings(ASS_BASE_URL="https://kiiraytest.example.com")
+def test_validate_ass_sandbox_quote_command_calls_ass_without_persisting(
+    ass_quote_context,
+    monkeypatch,
+):
+    class FakeASSClient:
+        calls = []
+
+        def calculate_school_bus_rc(self, payload, *, partner_group=None, contract=None):
+            self.__class__.calls.append(
+                {
+                    "payload": payload,
+                    "partner_group": partner_group,
+                    "contract": contract,
+                }
+            )
+            return {
+                "code": 2000,
+                "operationStatus": "SUCCESS",
+                "operationMessage": "Operation effectuee avec succes.",
+                "data": 391193,
+            }
+
+    monkeypatch.setattr(
+        "apps.quotes.management.commands.validate_ass_sandbox_quote_calculation.ASSAPIClient",
+        FakeASSClient,
+    )
+    Quote.objects.filter(pk=ass_quote_context["quote"].pk).update(
+        product_type=Quote.ProductType.SCHOOL_BUS,
+    )
+    output = StringIO()
+
+    call_command(
+        "validate_ass_sandbox_quote_calculation",
+        ass_quote_context["quote"].id,
+        "--confirm-external-ass-call",
+        stdout=output,
+    )
+
+    ass_quote_context["quote"].refresh_from_db()
+    command_output = output.getvalue()
+    assert FakeASSClient.calls[0]["partner_group"] == ass_quote_context["group"]
+    assert FakeASSClient.calls[0]["contract"] is None
+    assert FakeASSClient.calls[0]["payload"]["duree"] == 3
+    assert '"persisted_quote_calculation": false' in command_output
+    assert ass_quote_context["quote"].status == Quote.Status.DRAFT
+    assert ass_quote_context["quote"].civil_liability_amount == Decimal("0.00")

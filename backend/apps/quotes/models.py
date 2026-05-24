@@ -19,6 +19,7 @@ class Quote(models.Model):
         MOTO = "MOTO", "Moto"
         FLEET = "FLEET", "Flotte"
         TRAILER = "TRAILER", "Remorque"
+        SCHOOL_BUS = "SCHOOL_BUS", "Bus ecole"
         GARAGE = "GARAGE", "Garage"
 
     class Periodicity(models.TextChoices):

@@ -11,6 +11,11 @@ def build_ass_rc_payload_for_product(quote, *, rc_discount_amount=Decimal("0.00"
         )
     if quote.product_type == "TRAILER":
         return build_ass_trailer_rc_payload(quote)
+    if quote.product_type == "SCHOOL_BUS":
+        return build_ass_school_bus_rc_payload(
+            quote,
+            rc_discount_amount=rc_discount_amount,
+        )
     if quote.product_type == "GARAGE":
         return build_ass_garage_rc_payload(
             quote,
@@ -109,6 +114,25 @@ def build_ass_garage_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
                 "nombre_carte",
                 default=1,
             ),
+            "cout_police": _decimal_or_zero(quote.fees_amount),
+            "remise_rc": _decimal_or_zero(rc_discount_amount),
+            "valeurNeuve": _decimal_or_zero(vehicle.new_value),
+            "valeurActuelle": _decimal_or_zero(vehicle.current_value),
+            "garanties": quote.coverage_options or [],
+        }
+    )
+
+
+def build_ass_school_bus_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
+    vehicle = quote.vehicle
+    return _drop_none(
+        {
+            "duree": quote.duration,
+            "energie": vehicle.energy,
+            "periodicite": quote.periodicity,
+            "genre": vehicle.genre,
+            "nombrePlace": vehicle.seats,
+            "puissanceFiscale": vehicle.fiscal_power,
             "cout_police": _decimal_or_zero(quote.fees_amount),
             "remise_rc": _decimal_or_zero(rc_discount_amount),
             "valeurNeuve": _decimal_or_zero(vehicle.new_value),

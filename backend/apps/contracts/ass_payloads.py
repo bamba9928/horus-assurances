@@ -48,6 +48,8 @@ def build_ass_qrcode_payload_for_product(contract):
         return build_ass_fleet_qrcode_payload(contract)
     if product_type == "TRAILER":
         return build_ass_trailer_qrcode_payload(contract)
+    if product_type == "SCHOOL_BUS":
+        return build_ass_school_bus_qrcode_payload(contract)
     if product_type == "GARAGE":
         return build_ass_garage_qrcode_payload(contract)
     if product_type == "MOTO":
@@ -122,6 +124,21 @@ def build_ass_garage_qrcode_payload(contract):
             ),
             "immatriculation": vehicle.registration_number,
             "genre": vehicle.genre,
+            "valeurNeuve": _decimal_or_none(vehicle.new_value),
+            "valeurActuelle": _decimal_or_none(vehicle.current_value),
+            "garanties": quote.coverage_options or [],
+        }
+    )
+    return _drop_none(base_payload)
+
+
+def build_ass_school_bus_qrcode_payload(contract):
+    quote = contract.quote
+    vehicle = contract.vehicle
+    base_payload = _flat_qrcode_payload(contract)
+    base_payload.update(
+        {
+            "vehicule": _vehicle_payload(vehicle),
             "valeurNeuve": _decimal_or_none(vehicle.new_value),
             "valeurActuelle": _decimal_or_none(vehicle.current_value),
             "garanties": quote.coverage_options or [],
