@@ -216,11 +216,12 @@ stocke.
 
 ## Etat de phase
 
-Le depot est aligne sur une phase 16 partielle. Le backend expose les endpoints
-attendus par le prompt initial, conserve les routes versionnees deja utilisees
-par les tests et dispose d'un calcul RC ASS optionnel pour les devis avec
-routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage.
+Le depot est aligne sur une phase 16 backend MVP. Le backend expose les
+endpoints attendus par le prompt initial, conserve les routes versionnees deja
+utilisees par les tests et dispose d'un calcul RC ASS optionnel pour les devis
+avec routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage.
 
-La suite peut maintenant se concentrer sur les validations sandbox ASS restantes,
-les confirmations contractuelles des providers de paiement et la preparation des
-clients web/mobile.
+Les prochaines validations portent sur les sandbox ASS restantes
+`GARAGE`/`FLEET`/`SCHOOL_BUS`, les callbacks sandbox Wave et Orange Money, la
+livraison reelle SMS/email des liens client, l'OTP pour les telechargements
+sensibles, puis la preparation des clients web/mobile.

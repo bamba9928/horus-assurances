@@ -5,8 +5,9 @@ jour a chaque phase importante, apres les changements de code et les tests.
 
 ## Etat actuel
 
-Backend Django REST Framework avance jusqu'a la phase 16 partielle cote espace
-client.
+Backend Django REST Framework avance jusqu'a la phase 16 cote backend. Les
+socles locaux des phases 15 et 16 sont implementes et testes ; les validations
+externes et interfaces restent a finaliser.
 
 Stack cible :
 
@@ -16,6 +17,19 @@ Stack cible :
 - Authentification : JWT
 - Web : Next.js / React
 - Mobile : Flutter
+
+## Synthese des phases
+
+- Phase 13 : terminee pour la validation generique Diotali, avec emissions
+  sandbox reelles `MOTO`, `AUTO` et `TRAILER`.
+- Phase 14 : backend produits avances implemente localement ; validations
+  sandbox reelles `GARAGE`, `FLEET` et `SCHOOL_BUS` encore a faire.
+- Phase 15 : socle webhooks paiement implemente et teste localement ; callbacks
+  sandbox Wave et Orange Money encore a valider avec les providers.
+- Phase 16 : socle backend espace client implemente et teste localement ;
+  livraison reelle SMS/email, OTP et interfaces frontend/mobile encore a faire.
+- Phase 17 : non demarree.
+- Phase 18 : non demarree.
 
 ## Ce qui est deja fait
 
@@ -133,7 +147,7 @@ Stack cible :
   - confirmation automatique des paiements externes
   - marquage automatique `FAILED` / `CANCELLED` selon statut provider
   - controle montant/devise avant confirmation
-- Phase 16 demarree :
+- Phase 16 backend implemente :
   - `Client` reste une entite metier rattachee a un groupe/apporteur, distincte
     des utilisateurs internes
   - jetons client revocables, rotatifs et hashes via `ClientAccessToken`
@@ -167,6 +181,34 @@ Stack cible :
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
 - CI backend ajoutee dans `.github/workflows/ci.yml`
+
+## Prochaines validations externes
+
+Ces points ne doivent pas etre marques comme termines tant qu'une sandbox reelle
+ou un choix provider n'a pas confirme le comportement.
+
+1. ASS `SCHOOL_BUS`, `GARAGE`, `FLEET`
+   - Previsualiser les payloads RC et QR avec les endpoints internes.
+   - Executer `validate_ass_sandbox_quote_calculation` sur des devis locaux de
+     chaque produit avec `--confirm-external-ass-call`.
+   - Executer `validate_ass_sandbox_issue` uniquement sur contrats sandbox dont
+     le paiement est confirme et dont l'emission externe est autorisee.
+   - Figer une fixture non sensible par reponse reelle acceptee.
+2. Bus Ecole Postman v1.1
+   - Confirmer avec ASS si les champs optionnels de la collection Postman v1.1
+     sont acceptes, ignores ou rejetes lorsqu'ils sont presents.
+   - Documenter la liste definitive des champs a exposer dans l'API publique.
+3. Wave et Orange Money
+   - Obtenir les secrets webhook sandbox et configurer les callback URLs vers un
+     environnement accessible publiquement.
+   - Declencher un paiement sandbox par provider et verifier signature,
+     reference transactionnelle, montant, devise, idempotence et statut final.
+   - Ajouter des fixtures provider si le payload reel differe du format local.
+4. Espace client
+   - Choisir les providers SMS/email avant integration reelle.
+   - Ajouter OTP pour les actions sensibles apres stabilisation de la remise du
+     lien client.
+   - Conserver le stockage hashe pour les secrets client et OTP.
 
 ## Reste a faire
 
@@ -268,7 +310,8 @@ Reste a faire :
 
 Objectif : passer des paiements modelises aux webhooks reels.
 
-Etat : demarree, socle webhook local implemente et teste.
+Etat : socle backend implemente et teste localement ; validation provider
+sandbox restante.
 
 Fait :
 
@@ -293,7 +336,8 @@ Reste a faire :
 
 Objectif : permettre au client final de consulter ses documents.
 
-Etat : demarree, socle backend local implemente et teste.
+Etat : socle backend MVP implemente et teste localement ; livraison reelle et
+interfaces restantes.
 
 Fait :
 
@@ -361,7 +405,10 @@ Taches :
   `ass_product_data` est une solution transitoire controlee.
 - Les payloads produits avances sont testes localement mais pas encore valides
   contre une sandbox ASS reelle.
-- Les webhooks paiement ne sont pas encore implementes.
+- Les signatures et payloads reels Wave/Orange Money doivent encore etre
+  confirmes en sandbox provider.
+- Les liens client ne sont pas encore envoyes par vrai provider SMS/email.
+- L'OTP pour les telechargements sensibles reste a ajouter.
 - Le frontend et le mobile ne sont pas encore crees.
 
 ## Regle de maintenance
