@@ -1,0 +1,16 @@
+{
+  "status_code": 201,
+  "body": {
+    "Cedeao": "300",
+    "CoutPolice": "3000",
+    "Fga": "4445",
+    "PrimeAG": "0",
+    "PrimeRC": "177796",
+    "PrimeTotale": "210852",
+    "Reduction": "0",
+    "Taxe": "25311",
+    "data": "338960",
+    "operationMessage": "Operation effectuee avec succes.",
+    "operationStatus": "SUCCESS"
+  }
+}

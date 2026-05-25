@@ -1,13 +1,13 @@
 # Project Roadmap
 
-Ce fichier sert de fil conducteur du projet Horus Assurances. Il doit être mis à
-jour à chaque phase importante, apres les changements de code et les tests.
+Ce fichier sert de fil conducteur du projet Horus Assurances. Il doit etre mis a
+jour a chaque phase importante, apres les changements de code et les tests.
 
-## État actuel
+## Etat actuel
 
-Backend Django REST Framework avance jusqu'à la phase 16 cote backend. Les
+Backend Django REST Framework avance jusqu'a la phase 16 cote backend. Les
 socles locaux des phases 15 et 16 sont implementes et testes ; les validations
-externes et interfaces restent à finaliser.
+externes et interfaces restent a finaliser.
 
 Stack cible :
 
@@ -20,17 +20,51 @@ Stack cible :
 
 ## Synthese des phases
 
-- Phase 13 : terminée pour la validation générique Diotali, avec emissions
-  sandbox réelles `MOTO`, `AUTO` et `TRAILER`.
-- Phase 14 : backend produits avances implemente localement ; validations
-  sandbox réelles `GARAGE`, `FLEET` et `SCHOOL_BUS` encore a faire.
+- Phase 1 : socle projet Django/DRF termine.
+- Phase 2 : authentification interne JWT et roles utilisateurs termines.
+- Phase 3 : groupes partenaires et isolation multi-groupe termines.
+- Phase 4 : clients et vehicules termines.
+- Phase 5 : devis et calculs internes termines.
+- Phase 6 : paiements, wallets et transactions termines.
+- Phase 7 : contrats et emission preparee termines.
+- Phase 8 : commissions terminees.
+- Phase 9 : audit, notifications et dashboard termines.
+- Phase 10 : client ASS, Basic Auth et journalisation termines.
+- Phase 11 : calcul RC ASS mono termine et valide en sandbox.
+- Phase 12 : emission QR ASS mono preparee et extraction documentaire terminee.
+- Phase 13 : terminee pour la validation generique Diotali, avec emissions
+  sandbox reelles `MOTO`, `AUTO` et `TRAILER`.
+- Phase 14 : backend produits avances implemente localement ; validation
+  sandbox reelle `SCHOOL_BUS` RC terminee, validations `SCHOOL_BUS` QR,
+  `GARAGE` et `FLEET` encore a faire.
 - Phase 15 : socle webhooks paiement implemente et teste localement ; callbacks
   sandbox Wave et Orange Money encore a valider avec les providers.
-- Phase 16 : terminée pour le périmètre backend/dev faisable sans provider
-  externe ; livraison réelle SMS/email et interfaces frontend/mobile restent
+- Phase 16 : terminee pour le perimetre backend/dev faisable sans provider
+  externe ; livraison reelle SMS/email et interfaces frontend/mobile restent
   hors validation locale.
-- Phase 17 : non démarrée.
-- Phase 18 : non démarrée.
+- Phase 17 : non demarree.
+- Phase 18 : non demarree.
+
+## Phases 1 a 12 formalisees
+
+Les phases 1 a 12 n'etaient pas decrites comme blocs nommes dans le roadmap
+historique. Elles sont maintenant formalisees a partir des fonctionnalites
+livrees et couvertes par les tests backend.
+
+| Phase | Objectif | Etat | Elements livres |
+| --- | --- | --- | --- |
+| 1 | Initialiser le backend Django REST Framework | Terminee | Projet Django, apps metier, settings local/test/production |
+| 2 | Mettre en place l'authentification interne | Terminee | JWT, user custom, roles `GENERAL_ADMIN`, `GROUP_ADMIN`, `CONTRIBUTOR` |
+| 3 | Isoler les groupes partenaires | Terminee | `PartnerGroup`, filtrage par groupe, permissions multi-groupes |
+| 4 | Gerer clients et vehicules | Terminee | CRUD clients/vehicules, rattachement groupe/apporteur |
+| 5 | Gerer devis et calculs internes | Terminee | Devis, options garanties, montants, statuts |
+| 6 | Gerer paiements et wallets | Terminee | Paiements, wallets groupe, transactions, confirmations |
+| 7 | Gerer contrats | Terminee | Creation depuis paiement confirme, statuts, references documentaires |
+| 8 | Gerer commissions | Terminee | Regles de commission, calculs, suivi paiement commission |
+| 9 | Ajouter audit, notifications et dashboard | Terminee | Audit logs, notifications internes/client, dashboard API |
+| 10 | Integrer le client ASS de base | Terminee | Basic Auth ASS, logs `ASSAPICallLog`, sanitization, erreurs metier |
+| 11 | Activer le calcul RC ASS mono | Terminee | `rc.request`, extraction montants, fixture sandbox RC |
+| 12 | Preparer l'emission QR ASS mono | Terminee | `qrcode.request`, extraction `linkAttestation`/`linkCarteBrune`, preview payload |
 
 ## Ce qui est deja fait
 
@@ -40,7 +74,7 @@ Stack cible :
   - `GROUP_ADMIN`
   - `CONTRIBUTOR`
 - Isolation des donnees par groupe et par apporteur.
-- Endpoints API versionnés `/api/v1/...`.
+- Endpoints API versionnes `/api/v1/...`.
 - Aliases initiaux `/api/...`.
 - Auth JWT et endpoint `/api/auth/me/`.
 - Modules :
@@ -65,19 +99,19 @@ Stack cible :
   - SQLite memoire en test
   - PostgreSQL obligatoire en production
 - Calcul RC ASS `rc.request` valide en sandbox.
-- Fixture contractuelle du format reel de réponse RC ASS.
+- Fixture contractuelle du format reel de reponse RC ASS.
 - Calcul ASS optionnel sur `POST /api/v1/quotes/{id}/calculate/`.
-- Validation des échecs metier ASS `operationStatus` / `status` meme quand
+- Validation des echecs metier ASS `operationStatus` / `status` meme quand
   HTTP renvoie 200.
 - Champ `ass_product_data` sur les devis pour stocker les donnees ASS
-  spécifiques a un produit avant modelisation metier definitive.
-- Endpoint interne authentifie de prévisualisation payload RC :
+  specifiques a un produit avant modelisation metier definitive.
+- Endpoint interne authentifie de previsualisation payload RC :
   - `POST /api/v1/quotes/{id}/ass-payload-preview/`
-  - construit le payload ASS par produit sans appel réseau ASS
+  - construit le payload ASS par produit sans appel reseau ASS
   - accepte des overrides non persistants pour tester un produit avant calcul
-- Endpoint interne authentifie de prévisualisation payload QR :
+- Endpoint interne authentifie de previsualisation payload QR :
   - `POST /api/v1/contracts/{id}/ass-payload-preview/`
-  - construit le payload d'émission ASS/Diotali sans appeler ASS
+  - construit le payload d'emission ASS/Diotali sans appeler ASS
   - herite de l'isolation multi-groupe/apporteur du contrat
 - Endpoint documentaire contrat :
   - `GET /api/v1/contracts/{id}/documents/`
@@ -85,16 +119,16 @@ Stack cible :
   - herite de l'isolation multi-groupe/apporteur du contrat
 - Commande sandbox protegee :
   - `python manage.py validate_ass_sandbox_issue <contract_id>`
-  - affiche le payload d'émission sans appel externe par défaut
+  - affiche le payload d'emission sans appel externe par defaut
   - exige `--confirm-external-ass-call` pour appeler ASS
-  - refuse les URLs qui ne ressemblent pas à une sandbox sauf confirmation
+  - refuse les URLs qui ne ressemblent pas a une sandbox sauf confirmation
     explicite `--allow-non-sandbox-base-url`
   - ne marque pas le contrat comme emis apres l'appel de validation
 - Commande sandbox RC protegee :
   - `python manage.py validate_ass_sandbox_quote_calculation <quote_id>`
-  - affiche le payload de calcul RC sans appel externe par défaut
+  - affiche le payload de calcul RC sans appel externe par defaut
   - exige `--confirm-external-ass-call` pour appeler ASS
-  - refuse les URLs qui ne ressemblent pas à une sandbox sauf confirmation
+  - refuse les URLs qui ne ressemblent pas a une sandbox sauf confirmation
     explicite `--allow-non-sandbox-base-url`
   - ne persiste pas les montants RC sur le devis apres l'appel de validation
 - Routage du calcul RC ASS par type de produit :
@@ -114,18 +148,21 @@ Stack cible :
 - Champs documentaires Diotali :
   - `attestation_url`
   - `carte_brune_url`
+- Stock QR ASS :
+  - non expose dans Horus par choix produit
+  - gere directement dans le compte ASS natif
 - Extraction des cles documentaires Diotali vues dans la documentation ASS :
   - `linkAttestation`
   - `linkCarteBrune`
   - `attestationNumber`
   - variantes avec espaces autour des noms de cles
-- Emissions sandbox Diotali réelles validées sur contrats `MOTO`, `AUTO` et
+- Emissions sandbox Diotali reelles validees sur contrats `MOTO`, `AUTO` et
   `TRAILER`.
-- Fixture contractuelle de réponse QR Diotali :
+- Fixture contractuelle de reponse QR Diotali :
   - `apps/contracts/tests/fixtures/ass_moto_qrcode_success.json`
   - `apps/contracts/tests/fixtures/ass_auto_qrcode_success.json`
   - `apps/contracts/tests/fixtures/ass_trailer_qrcode_success.json`
-- Payloads ASS avances couvertes par tests unitaires locaux :
+- Payloads ASS avances couverts par tests unitaires locaux :
   - Moto : `cylindre`, `usage`, `nombrePlace`
   - Remorque : `referenceVehicule`
   - Bus ecole : champs vehicule standards, `nombrePlace`, `puissanceFiscale`
@@ -136,7 +173,7 @@ Stack cible :
   - `makemigrations --check --dry-run`
   - `pytest`
   - `manage.py check --deploy`
-- Phase 15 démarrée :
+- Phase 15 backend implemente :
   - endpoints publics `POST /api/v1/webhooks/wave/` et
     `POST /api/v1/webhooks/orange-money/`
   - verification HMAC-SHA256 Wave via `Wave-Signature`
@@ -149,10 +186,10 @@ Stack cible :
   - marquage automatique `FAILED` / `CANCELLED` selon statut provider
   - controle montant/devise avant confirmation
 - Phase 16 backend implemente :
-  - `Client` reste une entité metier rattachée a un groupe/apporteur, distincte
+  - `Client` reste une entite metier rattachee a un groupe/apporteur, distincte
     des utilisateurs internes
-  - jetons client révocables, rotatifs et hashes via `ClientAccessToken`
-  - jetons lies a `Client`, `Contract`, `PartnerGroup` et utilisateur créateur
+  - jetons client revocables, rotatifs et hashes via `ClientAccessToken`
+  - jetons lies a `Client`, `Contract`, `PartnerGroup` et utilisateur createur
   - champs `expires_at`, `revoked_at`, `used_at` et `delivery_channel`
   - generation interne de lien court signe :
     `POST /api/v1/client-access-tokens/`
@@ -168,24 +205,24 @@ Stack cible :
   - endpoints de redirection attestation et carte brune
   - endpoint notifications client `GET /api/v1/client-space/notifications/`
   - marquage lecture unitaire et global des notifications client
-  - notifications client créées lors de la confirmation paiement et de
-    l'émission contrat
+  - notifications client creees lors de la confirmation paiement et de
+    l'emission contrat
   - audit logs sur creation, envoi simule, utilisation, revocation et rotation
-  - OTP client hashe via `ClientAccessOtp` pour téléchargements sensibles
+  - OTP client hashe via `ClientAccessOtp` pour telechargements sensibles
   - generation OTP mockee via
     `POST /api/v1/client-space/contracts/{id}/documents/otp/`
-  - téléchargements attestation/carte brune proteges par `X-Client-OTP`
-  - URLs documentaires externes masquées dans l'espace client, remplacées par
-    des indicateurs de disponibilité
+  - telechargements attestation/carte brune proteges par `X-Client-OTP`
+  - URLs documentaires externes masquees dans l'espace client, remplacees par
+    des indicateurs de disponibilite
   - OTP a expiration courte, usage unique, rotation par nouvelle demande et
     verrouillage apres trop d'essais invalides
   - abstraction `ClientMessageProvider` avec provider mock local/test
   - flag `CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE` pour retourner les secrets
     bruts seulement en dev/test
-  - setting production qui desactive par défaut le retour API des tokens/OTP
+  - setting production qui desactive par defaut le retour API des tokens/OTP
     bruts
 
-## Dernier état de tests connu
+## Dernier etat de tests connu
 
 - Suite complete backend : `214 passed`
 - Tests cibles ASS apres ajout Bus ecole et commande RC sandbox : `44 passed`
@@ -195,7 +232,7 @@ Stack cible :
 - `manage.py check` : OK
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
-- CI backend ajoutée dans `.github/workflows/ci.yml`
+- CI backend ajoutee dans `.github/workflows/ci.yml`
 
 ## Prochaines validations externes
 
@@ -203,47 +240,54 @@ Ces points ne doivent pas etre marques comme termines tant qu'une sandbox reelle
 ou un choix provider n'a pas confirme le comportement.
 
 1. ASS `SCHOOL_BUS`, `GARAGE`, `FLEET`
-   - Prévisualiser les payloads RC et QR avec les endpoints internes.
+   - `SCHOOL_BUS` RC valide en sandbox le 2026-05-25
+     (`operationStatus=SUCCESS`) et fixture non sensible figee.
+   - Previsualiser les payloads RC et QR avec les endpoints internes.
    - Executer `validate_ass_sandbox_quote_calculation` sur des devis locaux de
      chaque produit avec `--confirm-external-ass-call`.
    - Executer `validate_ass_sandbox_issue` uniquement sur contrats sandbox dont
-     le paiement est confirme et dont l'émission externe est autorisée.
-   - Figer une fixture non sensible par réponse réelle acceptee.
+     le paiement est confirme et dont l'emission externe est autorisee.
+   - Figer une fixture non sensible par reponse reelle acceptee.
 2. Bus ecole Postman v1.1
    - Confirmer avec ASS si les champs optionnels de la collection Postman v1.1
-     sont acceptes, ignores ou rejetés lorsqu'ils sont presents.
-   - Documenter la liste definitive des champs à exposer dans l'API publique.
+     sont acceptes, ignores ou rejetes lorsqu'ils sont presents.
+   - Documenter la liste definitive des champs a exposer dans l'API publique.
 3. Wave et Orange Money
    - Obtenir les secrets webhook sandbox et configurer les callback URLs vers un
      environnement accessible publiquement.
-   - Déclencher un paiement sandbox par provider et verifier signature,
+   - Declencher un paiement sandbox par provider et verifier signature,
      reference transactionnelle, montant, devise, idempotence et statut final.
    - Ajouter des fixtures provider si le payload reel differe du format local.
 4. Espace client
-   - Choisir les providers SMS/email avant integration réelle.
+   - Choisir les providers SMS/email avant integration reelle.
    - Brancher l'envoi reel des liens et OTP apres stabilisation du format de
      message client.
    - Conserver le stockage hashe pour les secrets client et OTP.
 
-## Reste à faire
+Hors perimetre Horus :
+
+- Stock QR ASS : ne pas exposer d'API ou workflow Horus ; gestion dans le compte
+  ASS natif.
+
+## Reste a faire
 
 ### Phase 13 - Validation emission Diotali
 
-Objectif : valider une vraie réponse d'émission QR/document Diotali sans risquer
+Objectif : valider une vraie reponse d'emission QR/document Diotali sans risquer
 de polluer la production.
 
-État : terminée pour la validation générique Diotali, sur emissions sandbox
-réelles `MOTO` et `AUTO`.
+Etat : terminee pour la validation generique Diotali, sur emissions sandbox
+reelles `MOTO`, `AUTO` et `TRAILER`.
 
 Fait :
 
-- Base locale SQLite initialisée avec les migrations Django.
-- Contrat local de test cree pour prévisualisation :
+- Base locale SQLite initialisee avec les migrations Django.
+- Contrat local de test cree pour previsualisation :
   - `contract_id=1`
   - produit `MOTO`
-- Prévisualiser le payload via
+- Previsualiser le payload via
   `POST /api/v1/contracts/{id}/ass-payload-preview/`.
-- Prévisualiser ou executer prudemment l'appel sandbox via
+- Previsualiser ou executer prudemment l'appel sandbox via
   `python manage.py validate_ass_sandbox_issue <contract_id>`.
 - Appel sandbox reel effectue avec validation explicite :
   - endpoint `/api/v1/partner/moto.request`
@@ -267,30 +311,30 @@ Fait :
   - `linkCarteBrune` confirme
   - premiere remorque emise avec `responsabiliteCivile=0`, conformement a la
     documentation ASS
-- Fixture non sensible figée dans
+- Fixture non sensible figee dans
   `apps/contracts/tests/fixtures/ass_moto_qrcode_success.json`.
-- Fixture non sensible figée dans
+- Fixture non sensible figee dans
   `apps/contracts/tests/fixtures/ass_auto_qrcode_success.json`.
-- Fixture non sensible figée dans
+- Fixture non sensible figee dans
   `apps/contracts/tests/fixtures/ass_trailer_qrcode_success.json`.
-- Test contractuel ajoute pour verifier l'extraction depuis la fixture réelle.
+- Test contractuel ajoute pour verifier l'extraction depuis la fixture reelle.
 
 Reserve :
 
 - Cette phase valide le format Diotali et les cles documentaires sur un premier
-  produit. Les emissions sandbox par produit restent a dérouler dans la phase
+  produit. Les emissions sandbox par produit restent a derouler dans la phase
   14.
 
 ### Phase 14 - Produits ASS avances
 
 Objectif : completer les payloads par produit.
 
-État : démarrée, avec payloads locaux et routage backend couverts par tests.
+Etat : demarree, avec payloads locaux et routage backend couverts par tests.
 
 Fait :
 
 - Auto : flux `rc.request` conserve, options garanties `garantiesOptPT`,
-  `garantiesOptAR`, `garantiesOptAS` ajoutées, emission sandbox validée.
+  `garantiesOptAR`, `garantiesOptAS` ajoutees, emission sandbox validee.
 - Moto : payloads RC/QR enrichis avec `cylindre`, `usage`, `nombrePlace`.
 - Remorque : payload RC exige `referenceVehicule`; payload QR utilise la
   reference fournie dans `ass_product_data`; sandbox confirmee avec la
@@ -298,24 +342,25 @@ Fait :
 - Garage : payloads RC/QR gerent `nombreCarte`.
 - Bus ecole : produit `SCHOOL_BUS` ajoute cote devis, avec routage RC
   `bus.ecole.rc`, routage QR `bus.ecole.request` et payloads locaux alignes sur
-  la documentation ASS fournie.
+  la documentation ASS fournie ; appel sandbox RC reel valide le 2026-05-25
+  avec `operationStatus=SUCCESS`.
 - Flotte : payload RC accepte `referenceFlotte` et `requests`, avec fallback
   mono-vehicule local.
 - Tests payload/routage ajoutes pour calcul RC et emission QR.
-- Prévisualisation RC/QR sécurisée ajoutée pour verifier les payloads produits
+- Previsualisation RC/QR securisee ajoutee pour verifier les payloads produits
   avant appel sandbox.
-- Commande locale de validation sandbox RC ajoutée pour tester les calculs ASS
+- Commande locale de validation sandbox RC ajoutee pour tester les calculs ASS
   produit sans modifier les devis.
 
-Reste à faire :
+Reste a faire :
 
-- Valider les payloads `GARAGE`, `FLEET`, `SCHOOL_BUS` en sandbox ASS sans
+- Valider `SCHOOL_BUS` QR, `GARAGE` RC/QR et `FLEET` RC en sandbox ASS sans
   emission de production.
-- Confirmer les champs exacts à exposer dans l'API publique au lieu de garder
+- Confirmer les champs exacts a exposer dans l'API publique au lieu de garder
   seulement `ass_product_data`.
-- Flotte : modéliser proprement le multi-vehicules si le produit doit gérer de
+- Flotte : modeliser proprement le multi-vehicules si le produit doit gerer de
   vraies flottes dans Horus.
-- Garage : confirmer les genres metier attendus et la valeur par défaut de
+- Garage : confirmer les genres metier attendus et la valeur par defaut de
   `nombreCarte`.
 - Bus ecole : confirmer en sandbox les genres `BE-VTA` / `BE-VTCATP` et la
   tolerance ASS vis-a-vis des champs optionnels presents dans la collection
@@ -325,7 +370,7 @@ Reste à faire :
 
 Objectif : passer des paiements modelises aux webhooks reels.
 
-État : socle backend implemente et teste localement ; validation provider
+Etat : socle backend implemente et teste localement ; validation provider
 sandbox restante.
 
 Fait :
@@ -335,51 +380,51 @@ Fait :
 - Verification de signature.
 - Idempotence webhook.
 - Protection contre rejeu.
-- Mise à jour automatique des statuts.
+- Mise a jour automatique des statuts.
 - Tests de securite.
 
-Reste à faire :
+Reste a faire :
 
 - Confirmer avec les contrats providers les noms exacts des champs de reference
   transactionnelle Wave et Orange Money.
 - Tester un vrai callback sandbox Wave.
 - Tester un vrai callback sandbox Orange Money.
 - Ajouter, si necessaire, des adaptateurs de payload par pays/provider si les
-  webhooks reels different du format générique documente.
+  webhooks reels different du format generique documente.
 
 ### Phase 16 - Espace client
 
 Objectif : permettre au client final de consulter ses documents.
 
-État : termine pour le backend faisable en dev sans provider externe ; livraison
-réelle et interfaces restantes.
+Etat : termine pour le backend faisable en dev sans provider externe ; livraison
+reelle et interfaces restantes.
 
 Fait :
 
-- Clarifier si `Client` devient un utilisateur connecte ou reste une entité
-  rattachée à un apporteur.
-- Modele `ClientAccessToken` lie au client, contrat, groupe et créateur.
+- Clarifier si `Client` devient un utilisateur connecte ou reste une entite
+  rattachee a un apporteur.
+- Modele `ClientAccessToken` lie au client, contrat, groupe et createur.
 - Stockage uniquement du hash du jeton.
 - Expiration, revocation, utilisation et canal de remise.
 - Services de generation, verification, revocation, rotation et renvoi simule.
-- API interne admin/apporteur pour créer, révoquer, renouveler et renvoyer un
+- API interne admin/apporteur pour creer, revoquer, renouveler et renvoyer un
   lien.
 - Endpoint consultation contrats client.
-- Téléchargement attestation.
-- Téléchargement carte brune.
+- Telechargement attestation.
+- Telechargement carte brune.
 - Notifications client.
 - OTP documents sensibles hashe, expire, usage unique et verrouillable.
 - Provider de remise client abstrait avec implementation mock local/test.
-- Retour des secrets bruts configurable et desactive par défaut en production.
+- Retour des secrets bruts configurable et desactive par defaut en production.
 - Tests de securite : expiration, revocation, autre groupe, rotation, absence de
   stockage clair, refus document sans jeton valide, OTP expire/revoque/usage
   unique/mauvais usage/verrouillage.
 
-Reste à faire :
+Reste a faire :
 
 - Hors dev local : choisir et brancher un vrai provider SMS/email.
 - Hors dev local : valider les formats de messages client avec le provider.
-- Phase frontend/mobile : ajouter les écrans de consultation client.
+- Phase frontend/mobile : ajouter les ecrans de consultation client.
 
 ### Phase 17 - Frontend Next.js
 
@@ -411,19 +456,21 @@ Taches :
 - Creation client.
 - Creation vehicule.
 - Devis.
-- suivi contrat.
-- suivi commission.
+- Suivi contrat.
+- Suivi commission.
 - Documents attestation/carte brune.
 
 ## Risques techniques
 
-- Emission QR réelle ASS/Diotali peut créer une transaction externe.
-- Les noms de cles Diotali doivent être confirmes sur une réponse réelle.
+- Emission QR reelle ASS/Diotali peut creer une transaction externe.
+- Les noms de cles Diotali doivent etre confirmes sur une reponse reelle.
 - Certains produits ASS demandent encore une modelisation metier definitive ;
   `ass_product_data` est une solution transitoire controlee.
 - Les payloads produits avances sont testes localement, mais pas encore valides
-  contre une sandbox ASS réelle.
-- Les signatures et payloads reels Wave/Orange Money doivent encore être
+  contre une sandbox ASS reelle.
+- Le stock QR ASS n'est pas un risque fonctionnel Horus : il reste gere dans le
+  compte ASS natif.
+- Les signatures et payloads reels Wave/Orange Money doivent encore etre
   confirmes en sandbox provider.
 - Les liens et OTP client ne sont pas encore envoyes par vrai provider
   SMS/email.
@@ -433,8 +480,8 @@ Taches :
 
 Apres chaque phase ou intervention significative :
 
-- mettre à jour ce fichier ;
-- ajouter les nouvelles fonctionnalités terminées ;
-- déplacer les taches terminées hors du reste a faire ;
+- mettre a jour ce fichier ;
+- ajouter les nouvelles fonctionnalites terminees ;
+- deplacer les taches terminees hors du reste a faire ;
 - noter les tests executes et leur resultat ;
 - noter les risques ou points bloquants restants.

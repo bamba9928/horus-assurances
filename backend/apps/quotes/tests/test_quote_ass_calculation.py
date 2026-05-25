@@ -306,6 +306,24 @@ def test_extract_ass_rc_amounts_matches_real_mono_success_fixture():
     assert amounts["premium_amount"] + amounts["fees_amount"] == amounts["total_amount"]
 
 
+def test_extract_ass_rc_amounts_accepts_real_school_bus_success_fixture():
+    fixture = json.loads((FIXTURE_DIR / "ass_school_bus_rc_success.json").read_text())
+
+    assert fixture["status_code"] == 201
+    assert fixture["body"]["operationStatus"] == "SUCCESS"
+    assert "authorization" not in json.dumps(fixture).lower()
+
+    amounts = extract_ass_rc_amounts(
+        fixture["body"],
+        default_fees_amount=Decimal("0.00"),
+    )
+
+    assert amounts["premium_amount"] == Decimal("207852.00")
+    assert amounts["fees_amount"] == Decimal("3000.00")
+    assert amounts["total_amount"] == Decimal("210852.00")
+    assert amounts["premium_amount"] + amounts["fees_amount"] == amounts["total_amount"]
+
+
 @pytest.mark.django_db
 def test_calculate_quote_with_ass_updates_amounts_and_status(ass_quote_context):
     fake_client = FakeASSClient(

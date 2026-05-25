@@ -23,9 +23,10 @@ Le backend est coherent avec la documentation ASS pour le socle integre en dev :
 Basic Auth, endpoints principaux RC/QR, payloads par produit, journalisation,
 gestion `operationStatus`, extraction `linkAttestation` et `linkCarteBrune`.
 
-Les phases 1 a 12 ne sont pas documentees comme sections nommees dans le depot.
-Elles sont donc verifiees par fonctionnalites livrees. Les phases 13 a 16 sont
-tracees explicitement dans le roadmap.
+Les phases 1 a 12 sont maintenant formalisees dans le roadmap. Elles restent
+verifiees par fonctionnalites livrees, car leur historique initial n'existait
+pas comme sections nommees. Les phases 13 a 16 sont tracees explicitement dans
+le roadmap.
 
 Statut global :
 
@@ -79,14 +80,15 @@ Statut global :
 | `POST /api/v1/partner/bus.ecole.request` | `ASSAPIClient.request_school_bus_qrcode` | OK local, sandbox restante |
 | `POST /api/v1/partner/rc.garage` | `ASSAPIClient.calculate_garage_rc` | OK local, sandbox restante |
 | `POST /api/v1/partner/garage.request` | `ASSAPIClient.request_garage_qrcode` | OK local, sandbox restante |
-| `POST /api/v1/partner/stock.qr` | `ASSAPIClient.get_qrcode_stock` | Client bas niveau OK ; non expose metier |
+| `POST /api/v1/partner/stock.qr` | `ASSAPIClient.get_qrcode_stock` | Client bas niveau OK ; non expose metier par choix produit |
 | `POST /api/v1/partner/qrcode.cancel` | `ASSAPIClient.cancel_qrcode` | Client bas niveau OK ; non expose metier |
 | `POST /api/v1/partner/verif.immatriculation` | `ASSAPIClient.verify_registration` | Client bas niveau OK ; non expose metier |
 | `POST /api/v1/promobile/check.qrcode.status` | `ASSAPIClient.check_qrcode_status` | Client bas niveau OK ; non expose metier |
 
 Note : le PDF v1.0 mentionne `stock.qr` comme `GET` sans body, alors que la
 collection Postman v1.1 le fournit en `POST` avec `code`. Le backend suit la
-collection v1.1. A confirmer avant usage fonctionnel du stock QR.
+collection v1.1 dans le client bas niveau, mais Horus ne doit pas exposer le
+stock QR : il reste gere dans le compte ASS natif.
 
 ## Payloads ASS par produit
 
@@ -118,7 +120,8 @@ Points alignes :
 Points a surveiller :
 
 - Le PDF v1.0 et la collection v1.1 divergent sur certains noms historiques
-  (`qrcode.cancel` vs libelle PDF mono cancel, `stock.qr` GET/POST).
+  (`qrcode.cancel` vs libelle PDF mono cancel). La divergence `stock.qr`
+  GET/POST est notee, mais hors workflow Horus.
 - Le champ `secureKey` est documente comme a ignorer ; le backend ne l'exploite
   pas, ce qui est coherent.
 - La collection Moto contient une incoherence de valeur d'usage entre RC et QR
@@ -133,17 +136,19 @@ Points a surveiller :
 2. `SCHOOL_BUS` : le payload local reprend les champs Postman v1.1, mais la
    tolerance ASS des champs optionnels doit etre confirmee en sandbox.
 3. `GARAGE`, `FLEET`, `SCHOOL_BUS` : validations sandbox reelles encore a faire.
-4. `stock.qr`, `qrcode.cancel`, `verif.immatriculation`,
-   `check.qrcode.status` : clients bas niveau presents, mais pas d'endpoints
-   metier Horus. Ce n'est pas bloquant pour phases 1 a 16, mais a planifier si
-   le back-office doit gerer stock, annulation ou verification.
-5. Documentation projet : phases 1 a 12 doivent etre formalisees si le suivi de
-   phase doit etre auditable sans reconstruction.
+4. `stock.qr` : client bas niveau present, mais aucun endpoint metier Horus a
+   ajouter. Le stock QR reste gere dans le compte ASS natif.
+5. `qrcode.cancel`, `verif.immatriculation`, `check.qrcode.status` : clients bas
+   niveau presents, mais pas d'endpoints metier Horus. Ce n'est pas bloquant
+   pour phases 1 a 16, mais a planifier seulement si le back-office doit gerer
+   annulation, verification ou statut QR.
+6. Documentation projet : les phases 1 a 12 sont formalisees dans le roadmap ;
+   conserver cette structure pour les prochains audits.
 
 ## Conclusion
 
 Le backend phases 1 a 16 est coherent avec la documentation ASS pour le
 perimetre implemente et testable localement. Les reserves restantes sont des
 validations externes ou des choix produit : sandbox ASS avancee, vraie flotte
-multi-vehicules, endpoints auxiliaires ASS a exposer ou non, et providers
-externes hors ASS.
+multi-vehicules, endpoints auxiliaires ASS a exposer ou non hors stock QR, et
+providers externes hors ASS.
