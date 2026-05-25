@@ -101,6 +101,9 @@ Variables importantes :
 - `ORANGE_MONEY_WEBHOOK_SECRET`
 - `PAYMENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS`
 - `CLIENT_ACCESS_TOKEN_TTL_DAYS`
+- `CLIENT_ACCESS_OTP_TTL_MINUTES`
+- `CLIENT_ACCESS_OTP_LENGTH`
+- `CLIENT_ACCESS_OTP_MAX_ATTEMPTS`
 - `CLIENT_PORTAL_BASE_URL`
 
 ## Tests
@@ -204,6 +207,7 @@ Endpoints disponibles :
 - `GET /api/v1/client-space/me/`
 - `GET /api/v1/client-space/contracts/`
 - `GET /api/v1/client-space/contracts/{id}/documents/`
+- `POST /api/v1/client-space/contracts/{id}/documents/otp/`
 - `GET /api/v1/client-space/contracts/{id}/documents/attestation/`
 - `GET /api/v1/client-space/contracts/{id}/documents/carte-brune/`
 - `GET /api/v1/client-space/notifications/`
@@ -214,6 +218,13 @@ Le renvoi de lien ne contacte encore aucun vrai service SMS/email. Par securite,
 il genere un nouveau jeton et revoque l'ancien, car le jeton clair n'est jamais
 stocke.
 
+Les URLs documentaires externes ne sont pas exposees directement dans l'espace
+client. Le backend expose seulement la disponibilite des documents. Pour
+telecharger une attestation ou une carte brune, le client doit demander un OTP
+mocke via `/documents/otp/`, puis appeler la route de telechargement avec le
+header `X-Client-OTP`. L'OTP est stocke uniquement sous forme hashee, expire
+rapidement, est a usage unique et se verrouille apres trop d'essais invalides.
+
 ## Etat de phase
 
 Le depot est aligne sur une phase 16 backend MVP. Le backend expose les
@@ -223,5 +234,5 @@ avec routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage
 
 Les prochaines validations portent sur les sandbox ASS restantes
 `GARAGE`/`FLEET`/`SCHOOL_BUS`, les callbacks sandbox Wave et Orange Money, la
-livraison reelle SMS/email des liens client, l'OTP pour les telechargements
-sensibles, puis la preparation des clients web/mobile.
+livraison reelle SMS/email des liens et OTP client, puis la preparation des
+clients web/mobile.

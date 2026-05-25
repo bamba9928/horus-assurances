@@ -176,3 +176,96 @@ class ClientAccessToken(models.Model):
                 )
         if self.client_id and not self.client.is_active and self.revoked_at is None:
             raise ValidationError({"client": "Le client doit etre actif."})
+
+
+class ClientAccessOtp(models.Model):
+    class Purpose(models.TextChoices):
+        ATTESTATION_DOWNLOAD = "ATTESTATION_DOWNLOAD", "Telechargement attestation"
+        CARTE_BRUNE_DOWNLOAD = "CARTE_BRUNE_DOWNLOAD", "Telechargement carte brune"
+
+    partner_group = models.ForeignKey(
+        "groups.PartnerGroup",
+        on_delete=models.PROTECT,
+        related_name="client_access_otps",
+    )
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name="access_otps",
+    )
+    contract = models.ForeignKey(
+        "contracts.Contract",
+        on_delete=models.CASCADE,
+        related_name="client_access_otps",
+    )
+    access_token = models.ForeignKey(
+        ClientAccessToken,
+        on_delete=models.CASCADE,
+        related_name="otps",
+    )
+    otp_hash = models.CharField(max_length=64)
+    purpose = models.CharField(max_length=40, choices=Purpose.choices)
+    delivery_channel = models.CharField(
+        max_length=20,
+        choices=ClientAccessToken.DeliveryChannel.choices,
+        default=ClientAccessToken.DeliveryChannel.MANUAL,
+    )
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    expires_at = models.DateTimeField()
+    sent_at = models.DateTimeField(null=True, blank=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["access_token", "purpose", "otp_hash"],
+                name="clients_otp_lookup_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Client access OTP {self.client_id}/{self.contract_id}/{self.purpose}"
+
+    @property
+    def is_active(self) -> bool:
+        return (
+            self.revoked_at is None
+            and self.used_at is None
+            and self.expires_at > timezone.now()
+            and self.client.is_active
+            and self.access_token.is_active
+        )
+
+    def clean(self):
+        super().clean()
+        if self.access_token_id:
+            if self.partner_group_id and self.access_token.partner_group_id != self.partner_group_id:
+                raise ValidationError(
+                    {"partner_group": "Le groupe doit etre celui du jeton."}
+                )
+            if self.client_id and self.access_token.client_id != self.client_id:
+                raise ValidationError(
+                    {"client": "Le client doit etre celui du jeton."}
+                )
+            if self.contract_id and self.access_token.contract_id != self.contract_id:
+                raise ValidationError(
+                    {"contract": "Le contrat doit etre celui du jeton."}
+                )
+        if self.client_id and self.partner_group_id:
+            if self.client.partner_group_id != self.partner_group_id:
+                raise ValidationError(
+                    {"client": "Le client doit appartenir au groupe de l'OTP."}
+                )
+        if self.contract_id and self.partner_group_id:
+            if self.contract.partner_group_id != self.partner_group_id:
+                raise ValidationError(
+                    {"contract": "Le contrat doit appartenir au groupe de l'OTP."}
+                )
+        if self.client_id and self.contract_id:
+            if self.contract.client_id != self.client_id:
+                raise ValidationError(
+                    {"contract": "Le contrat doit appartenir au client de l'OTP."}
+                )

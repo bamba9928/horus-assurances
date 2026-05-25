@@ -26,6 +26,20 @@ class AuditLog(models.Model):
             "CLIENT_ACCESS_TOKEN_ROTATED",
             "Jeton client renouvele",
         )
+        CLIENT_ACCESS_OTP_CREATED = "CLIENT_ACCESS_OTP_CREATED", "OTP client cree"
+        CLIENT_ACCESS_OTP_SENT = "CLIENT_ACCESS_OTP_SENT", "OTP client envoye"
+        CLIENT_ACCESS_OTP_VERIFIED = (
+            "CLIENT_ACCESS_OTP_VERIFIED",
+            "OTP client valide",
+        )
+        CLIENT_ACCESS_OTP_FAILED = (
+            "CLIENT_ACCESS_OTP_FAILED",
+            "OTP client refuse",
+        )
+        CLIENT_ACCESS_OTP_REVOKED = (
+            "CLIENT_ACCESS_OTP_REVOKED",
+            "OTP client revoque",
+        )
 
     partner_group = models.ForeignKey(
         "groups.PartnerGroup",

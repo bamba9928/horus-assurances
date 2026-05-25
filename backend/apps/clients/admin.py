@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Client, ClientAccessToken
+from .models import Client, ClientAccessOtp, ClientAccessToken
 
 
 @admin.register(Client)
@@ -55,5 +55,48 @@ class ClientAccessTokenAdmin(admin.ModelAdmin):
         "expires_at",
         "revoked_at",
         "used_at",
+        "created_at",
+    ]
+
+
+@admin.register(ClientAccessOtp)
+class ClientAccessOtpAdmin(admin.ModelAdmin):
+    list_display = [
+        "client",
+        "contract",
+        "purpose",
+        "delivery_channel",
+        "expires_at",
+        "used_at",
+        "revoked_at",
+        "failed_attempts",
+        "created_at",
+    ]
+    list_filter = [
+        "purpose",
+        "delivery_channel",
+        "partner_group",
+        "used_at",
+        "revoked_at",
+    ]
+    search_fields = [
+        "client__first_name",
+        "client__last_name",
+        "client__company_name",
+        "contract__contract_number",
+    ]
+    readonly_fields = [
+        "partner_group",
+        "client",
+        "contract",
+        "access_token",
+        "otp_hash",
+        "purpose",
+        "delivery_channel",
+        "failed_attempts",
+        "expires_at",
+        "sent_at",
+        "used_at",
+        "revoked_at",
         "created_at",
     ]

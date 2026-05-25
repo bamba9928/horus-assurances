@@ -162,6 +162,21 @@ CLIENT_ACCESS_TOKEN_TTL_DAYS = config(
     default=30,
     cast=int,
 )
+CLIENT_ACCESS_OTP_TTL_MINUTES = config(
+    "CLIENT_ACCESS_OTP_TTL_MINUTES",
+    default=10,
+    cast=int,
+)
+CLIENT_ACCESS_OTP_LENGTH = config(
+    "CLIENT_ACCESS_OTP_LENGTH",
+    default=6,
+    cast=int,
+)
+CLIENT_ACCESS_OTP_MAX_ATTEMPTS = config(
+    "CLIENT_ACCESS_OTP_MAX_ATTEMPTS",
+    default=5,
+    cast=int,
+)
 CLIENT_PORTAL_BASE_URL = config(
     "CLIENT_PORTAL_BASE_URL",
     default="http://localhost:3000",

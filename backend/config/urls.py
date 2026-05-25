@@ -11,6 +11,7 @@ from apps.clients.views import (
     ClientPortalCarteBruneDownloadView,
     ClientPortalContractDocumentsView,
     ClientPortalContractListView,
+    ClientPortalDocumentOtpCreateView,
     ClientPortalNotificationListView,
     ClientPortalNotificationMarkAllReadView,
     ClientPortalNotificationMarkReadView,
@@ -85,6 +86,11 @@ urlpatterns = [
         name="client_space_contract_documents",
     ),
     path(
+        "api/v1/client-space/contracts/<int:pk>/documents/otp/",
+        ClientPortalDocumentOtpCreateView.as_view(),
+        name="client_space_contract_document_otp",
+    ),
+    path(
         "api/v1/client-space/contracts/<int:pk>/documents/attestation/",
         ClientPortalAttestationDownloadView.as_view(),
         name="client_space_contract_attestation",
@@ -126,6 +132,11 @@ urlpatterns = [
         "api/client-space/contracts/<int:pk>/documents/",
         ClientPortalContractDocumentsView.as_view(),
         name="client_space_contract_documents_alias",
+    ),
+    path(
+        "api/client-space/contracts/<int:pk>/documents/otp/",
+        ClientPortalDocumentOtpCreateView.as_view(),
+        name="client_space_contract_document_otp_alias",
     ),
     path(
         "api/client-space/contracts/<int:pk>/documents/attestation/",

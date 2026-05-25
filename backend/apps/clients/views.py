@@ -9,16 +9,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.contracts.models import Contract
-from apps.contracts.serializers import ContractDocumentsSerializer
 from apps.notifications.models import Notification
 
-from .models import Client, ClientAccessToken
+from .models import Client, ClientAccessOtp, ClientAccessToken
 from .portal import (
     authenticate_client_access_request,
     create_client_access_token,
+    create_client_access_otp,
+    extract_raw_otp,
     resend_client_access_link,
     revoke_client_access_token,
     rotate_client_access_token,
+    verify_client_access_otp,
 )
 from .serializers import (
     ClientAccessTokenCreateSerializer,
@@ -26,10 +28,25 @@ from .serializers import (
     ClientAccessTokenResponseSerializer,
     ClientAccessTokenSerializer,
     ClientPortalContractSerializer,
+    ClientPortalContractDocumentsSerializer,
+    ClientPortalDocumentOtpCreateSerializer,
+    ClientPortalDocumentOtpResponseSerializer,
     ClientPortalNotificationSerializer,
     ClientPortalProfileSerializer,
     ClientSerializer,
 )
+
+
+DOCUMENT_KIND_CONFIG = {
+    "attestation": {
+        "field": "attestation_url",
+        "purpose": ClientAccessOtp.Purpose.ATTESTATION_DOWNLOAD,
+    },
+    "carte_brune": {
+        "field": "carte_brune_url",
+        "purpose": ClientAccessOtp.Purpose.CARTE_BRUNE_DOWNLOAD,
+    },
+}
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -200,7 +217,7 @@ class ClientPortalContractListView(ClientPortalBaseView):
 
 class ClientPortalContractDocumentsView(ClientPortalBaseView):
     @extend_schema(
-        responses={200: ContractDocumentsSerializer},
+        responses={200: ClientPortalContractDocumentsSerializer},
         auth=[],
     )
     def get(self, request, pk):
@@ -208,14 +225,57 @@ class ClientPortalContractDocumentsView(ClientPortalBaseView):
         contract = _client_contracts(access_token).filter(pk=pk).first()
         if contract is None:
             return Response({"detail": "Contrat introuvable."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(ContractDocumentsSerializer(contract).data)
+        return Response(ClientPortalContractDocumentsSerializer(contract).data)
+
+
+class ClientPortalDocumentOtpCreateView(ClientPortalBaseView):
+    @extend_schema(
+        request=ClientPortalDocumentOtpCreateSerializer,
+        responses={201: ClientPortalDocumentOtpResponseSerializer},
+        auth=[],
+    )
+    def post(self, request, pk):
+        access_token = self.get_access_token(request)
+        contract = _client_contracts(access_token).filter(pk=pk).first()
+        if contract is None:
+            return Response({"detail": "Contrat introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ClientPortalDocumentOtpCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        document_kind = serializer.validated_data["document_kind"]
+        config = DOCUMENT_KIND_CONFIG[document_kind]
+        if not getattr(contract, config["field"], ""):
+            return Response({"detail": "Document indisponible."}, status=status.HTTP_404_NOT_FOUND)
+
+        raw_otp, otp, delivery = create_client_access_otp(
+            access_token=access_token,
+            purpose=config["purpose"],
+            delivery_channel=serializer.validated_data.get("delivery_channel"),
+        )
+        payload = {
+            "otp": raw_otp,
+            "document_kind": document_kind,
+            "mock_delivery": delivery["mock_delivery"],
+            "delivery_channel": delivery["delivery_channel"],
+            "destination": delivery["destination"],
+            "expires_at": otp.expires_at,
+        }
+        return Response(
+            ClientPortalDocumentOtpResponseSerializer(payload).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ClientPortalContractDocumentDownloadView(ClientPortalBaseView):
-    document_kind = ""
+    document_url_field = ""
+    otp_purpose = ""
 
     @extend_schema(
-        responses={302: OpenApiTypes.NONE, 404: OpenApiTypes.OBJECT},
+        responses={
+            302: OpenApiTypes.NONE,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
         auth=[],
     )
     def get(self, request, pk):
@@ -224,18 +284,25 @@ class ClientPortalContractDocumentDownloadView(ClientPortalBaseView):
         if contract is None:
             return Response({"detail": "Contrat introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
-        document_url = getattr(contract, self.document_kind, "")
+        document_url = getattr(contract, self.document_url_field, "")
         if not document_url:
             return Response({"detail": "Document indisponible."}, status=status.HTTP_404_NOT_FOUND)
+        verify_client_access_otp(
+            access_token=access_token,
+            purpose=self.otp_purpose,
+            raw_otp=extract_raw_otp(request),
+        )
         return redirect(document_url)
 
 
 class ClientPortalAttestationDownloadView(ClientPortalContractDocumentDownloadView):
-    document_kind = "attestation_url"
+    document_url_field = "attestation_url"
+    otp_purpose = ClientAccessOtp.Purpose.ATTESTATION_DOWNLOAD
 
 
 class ClientPortalCarteBruneDownloadView(ClientPortalContractDocumentDownloadView):
-    document_kind = "carte_brune_url"
+    document_url_field = "carte_brune_url"
+    otp_purpose = ClientAccessOtp.Purpose.CARTE_BRUNE_DOWNLOAD
 
 
 class ClientPortalNotificationListView(ClientPortalBaseView):

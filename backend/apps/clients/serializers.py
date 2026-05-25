@@ -210,6 +210,8 @@ class ClientPortalContractSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
+    attestation_available = serializers.SerializerMethodField()
+    carte_brune_available = serializers.SerializerMethodField()
 
     class Meta:
         model = Contract
@@ -219,8 +221,8 @@ class ClientPortalContractSerializer(serializers.ModelSerializer):
             "contract_number",
             "attestation_reference",
             "qr_code_reference",
-            "attestation_url",
-            "carte_brune_url",
+            "attestation_available",
+            "carte_brune_available",
             "issued_at",
             "created_at",
             "vehicle_registration_number",
@@ -230,6 +232,64 @@ class ClientPortalContractSerializer(serializers.ModelSerializer):
             "total_amount",
         ]
         read_only_fields = fields
+
+    def get_attestation_available(self, obj) -> bool:
+        return bool(obj.attestation_url)
+
+    def get_carte_brune_available(self, obj) -> bool:
+        return bool(obj.carte_brune_url)
+
+
+class ClientPortalContractDocumentsSerializer(serializers.ModelSerializer):
+    attestation_available = serializers.SerializerMethodField()
+    carte_brune_available = serializers.SerializerMethodField()
+    otp_required = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Contract
+        fields = [
+            "id",
+            "status",
+            "contract_number",
+            "attestation_reference",
+            "qr_code_reference",
+            "attestation_available",
+            "carte_brune_available",
+            "otp_required",
+            "issued_at",
+        ]
+        read_only_fields = fields
+
+    def get_attestation_available(self, obj) -> bool:
+        return bool(obj.attestation_url)
+
+    def get_carte_brune_available(self, obj) -> bool:
+        return bool(obj.carte_brune_url)
+
+    def get_otp_required(self, obj) -> bool:
+        return True
+
+
+class ClientPortalDocumentOtpCreateSerializer(serializers.Serializer):
+    document_kind = serializers.ChoiceField(
+        choices=[
+            ("attestation", "Attestation"),
+            ("carte_brune", "Carte brune"),
+        ]
+    )
+    delivery_channel = serializers.ChoiceField(
+        choices=ClientAccessToken.DeliveryChannel.choices,
+        required=False,
+    )
+
+
+class ClientPortalDocumentOtpResponseSerializer(serializers.Serializer):
+    otp = serializers.CharField(read_only=True)
+    document_kind = serializers.CharField(read_only=True)
+    mock_delivery = serializers.BooleanField(read_only=True)
+    delivery_channel = serializers.CharField(read_only=True)
+    destination = serializers.CharField(read_only=True, allow_blank=True)
+    expires_at = serializers.DateTimeField(read_only=True)
 
 
 class ClientPortalNotificationSerializer(serializers.ModelSerializer):

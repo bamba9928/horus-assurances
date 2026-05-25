@@ -26,8 +26,9 @@ Stack cible :
   sandbox reelles `GARAGE`, `FLEET` et `SCHOOL_BUS` encore a faire.
 - Phase 15 : socle webhooks paiement implemente et teste localement ; callbacks
   sandbox Wave et Orange Money encore a valider avec les providers.
-- Phase 16 : socle backend espace client implemente et teste localement ;
-  livraison reelle SMS/email, OTP et interfaces frontend/mobile encore a faire.
+- Phase 16 : socle backend espace client et OTP documents sensibles implementes
+  et testes localement ; livraison reelle SMS/email et interfaces
+  frontend/mobile encore a faire.
 - Phase 17 : non demarree.
 - Phase 18 : non demarree.
 
@@ -170,13 +171,22 @@ Stack cible :
   - notifications client creees lors de la confirmation paiement et de
     l'emission contrat
   - audit logs sur creation, envoi simule, utilisation, revocation et rotation
+  - OTP client hashe via `ClientAccessOtp` pour telechargements sensibles
+  - generation OTP mockee via
+    `POST /api/v1/client-space/contracts/{id}/documents/otp/`
+  - telechargements attestation/carte brune proteges par `X-Client-OTP`
+  - URLs documentaires externes masquees dans l'espace client, remplacees par
+    des indicateurs de disponibilite
+  - OTP a expiration courte, usage unique, rotation par nouvelle demande et
+    verrouillage apres trop d'essais invalides
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `205 passed`
+- Suite complete backend : `212 passed`
 - Tests cibles ASS apres ajout Bus Ecole et commande RC sandbox : `44 passed`
 - Tests cibles paiements phase 15 : `26 passed`
-- Tests cibles espace client phase 16 : `84 passed`
+- Tests cibles espace client phase 16 : `22 passed`
+- Tests cibles clients/notifications/contrats/paiements apres OTP : `106 passed`
 - `manage.py check` : OK
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
@@ -206,8 +216,8 @@ ou un choix provider n'a pas confirme le comportement.
    - Ajouter des fixtures provider si le payload reel differe du format local.
 4. Espace client
    - Choisir les providers SMS/email avant integration reelle.
-   - Ajouter OTP pour les actions sensibles apres stabilisation de la remise du
-     lien client.
+   - Brancher l'envoi reel des liens et OTP apres stabilisation du format de
+     message client.
    - Conserver le stockage hashe pour les secrets client et OTP.
 
 ## Reste a faire
@@ -359,8 +369,7 @@ Fait :
 Reste a faire :
 
 - Brancher un vrai provider SMS/email apres validation du format de message.
-- Ajouter OTP pour les actions sensibles comme le telechargement attestation ou
-  carte brune.
+- Brancher l'envoi reel des OTP via SMS/email apres choix provider.
 - Ajouter les ecrans frontend/mobile de consultation client.
 
 ### Phase 17 - Frontend Next.js
@@ -407,8 +416,8 @@ Taches :
   contre une sandbox ASS reelle.
 - Les signatures et payloads reels Wave/Orange Money doivent encore etre
   confirmes en sandbox provider.
-- Les liens client ne sont pas encore envoyes par vrai provider SMS/email.
-- L'OTP pour les telechargements sensibles reste a ajouter.
+- Les liens et OTP client ne sont pas encore envoyes par vrai provider
+  SMS/email.
 - Le frontend et le mobile ne sont pas encore crees.
 
 ## Regle de maintenance

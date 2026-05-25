@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.audit.models import AuditLog
-from apps.clients.models import Client, ClientAccessToken
+from apps.clients.models import Client, ClientAccessOtp, ClientAccessToken
 from apps.contracts.models import Contract
 from apps.groups.models import PartnerGroup
 from apps.notifications.models import Notification
@@ -209,6 +209,22 @@ def _portal_client(token):
     return client
 
 
+def _request_document_otp(
+    context,
+    token,
+    *,
+    contract_key="contract_a",
+    document_kind="attestation",
+):
+    response = _portal_client(token).post(
+        f"/api/v1/client-space/contracts/{context[contract_key].id}/documents/otp/",
+        {"document_kind": document_kind},
+        format="json",
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.data["otp"], response.data
+
+
 @pytest.mark.django_db
 def test_contributor_can_create_client_access_token(client_portal_context):
     raw_token, token_id, response_data = _issue_access_token(client_portal_context)
@@ -401,6 +417,10 @@ def test_client_portal_lists_only_token_contract(client_portal_context):
     assert [item["id"] for item in response.data] == [
         client_portal_context["contract_a"].id
     ]
+    assert response.data[0]["attestation_available"] is True
+    assert response.data[0]["carte_brune_available"] is True
+    assert "attestation_url" not in response.data[0]
+    assert "carte_brune_url" not in response.data[0]
 
 
 @pytest.mark.django_db
@@ -412,13 +432,16 @@ def test_client_portal_reads_own_contract_documents(client_portal_context):
     )
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["attestation_url"].endswith("/CLIENT-CONTRACT-A/attestation.pdf")
-    assert response.data["carte_brune_url"].endswith("/CLIENT-CONTRACT-A/carte-brune.pdf")
+    assert response.data["attestation_available"] is True
+    assert response.data["carte_brune_available"] is True
+    assert response.data["otp_required"] is True
+    assert "attestation_url" not in response.data
+    assert "carte_brune_url" not in response.data
     assert AuditLog.objects.filter(action=AuditLog.Action.CLIENT_ACCESS_TOKEN_USED).exists()
 
 
 @pytest.mark.django_db
-def test_client_portal_attestation_download_redirects_to_document_url(
+def test_client_portal_attestation_download_requires_otp(
     client_portal_context,
 ):
     raw_token, _, _ = _issue_access_token(client_portal_context)
@@ -427,8 +450,148 @@ def test_client_portal_attestation_download_redirects_to_document_url(
         f"/api/v1/client-space/contracts/{client_portal_context['contract_a'].id}/documents/attestation/"
     )
 
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_client_portal_document_otp_is_mocked_and_not_stored_in_clear_text(
+    client_portal_context,
+):
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    raw_otp, response_data = _request_document_otp(client_portal_context, raw_token)
+    otp = ClientAccessOtp.objects.get()
+
+    assert response_data["mock_delivery"] is True
+    assert response_data["document_kind"] == "attestation"
+    assert raw_otp.isdigit()
+    assert otp.otp_hash != raw_otp
+    assert raw_otp not in otp.otp_hash
+    assert otp.sent_at is not None
+    assert AuditLog.objects.filter(
+        action=AuditLog.Action.CLIENT_ACCESS_OTP_CREATED,
+        target_id=str(otp.id),
+    ).exists()
+    assert AuditLog.objects.filter(
+        action=AuditLog.Action.CLIENT_ACCESS_OTP_SENT,
+        target_id=str(otp.id),
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_client_portal_attestation_download_redirects_with_valid_otp(
+    client_portal_context,
+):
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    raw_otp, _ = _request_document_otp(client_portal_context, raw_token)
+
+    response = _portal_client(raw_token).get(
+        f"/api/v1/client-space/contracts/{client_portal_context['contract_a'].id}/documents/attestation/",
+        HTTP_X_CLIENT_OTP=raw_otp,
+    )
+    otp = ClientAccessOtp.objects.get()
+
     assert response.status_code == status.HTTP_302_FOUND
     assert response["Location"].endswith("/CLIENT-CONTRACT-A/attestation.pdf")
+    assert otp.used_at is not None
+    assert AuditLog.objects.filter(
+        action=AuditLog.Action.CLIENT_ACCESS_OTP_VERIFIED,
+        target_id=str(otp.id),
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_client_portal_document_otp_is_single_use(client_portal_context):
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    raw_otp, _ = _request_document_otp(client_portal_context, raw_token)
+    portal_client = _portal_client(raw_token)
+    url = (
+        f"/api/v1/client-space/contracts/"
+        f"{client_portal_context['contract_a'].id}/documents/attestation/"
+    )
+
+    first_response = portal_client.get(url, HTTP_X_CLIENT_OTP=raw_otp)
+    second_response = portal_client.get(url, HTTP_X_CLIENT_OTP=raw_otp)
+
+    assert first_response.status_code == status.HTTP_302_FOUND
+    assert second_response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_client_portal_expired_document_otp_is_rejected(client_portal_context):
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    raw_otp, _ = _request_document_otp(client_portal_context, raw_token)
+    ClientAccessOtp.objects.update(expires_at=timezone.now() - timedelta(minutes=1))
+
+    response = _portal_client(raw_token).get(
+        f"/api/v1/client-space/contracts/{client_portal_context['contract_a'].id}/documents/attestation/",
+        HTTP_X_CLIENT_OTP=raw_otp,
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_client_portal_document_otp_purpose_must_match(client_portal_context):
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    raw_otp, _ = _request_document_otp(
+        client_portal_context,
+        raw_token,
+        document_kind="attestation",
+    )
+
+    response = _portal_client(raw_token).get(
+        f"/api/v1/client-space/contracts/{client_portal_context['contract_a'].id}/documents/carte-brune/",
+        HTTP_X_CLIENT_OTP=raw_otp,
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_client_portal_new_document_otp_revokes_previous_one(client_portal_context):
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    first_otp, _ = _request_document_otp(client_portal_context, raw_token)
+    second_otp, _ = _request_document_otp(client_portal_context, raw_token)
+    url = (
+        f"/api/v1/client-space/contracts/"
+        f"{client_portal_context['contract_a'].id}/documents/attestation/"
+    )
+
+    first_response = _portal_client(raw_token).get(url, HTTP_X_CLIENT_OTP=first_otp)
+    second_response = _portal_client(raw_token).get(url, HTTP_X_CLIENT_OTP=second_otp)
+
+    assert first_response.status_code == status.HTTP_403_FORBIDDEN
+    assert second_response.status_code == status.HTTP_302_FOUND
+    assert ClientAccessOtp.objects.filter(revoked_at__isnull=False).exists()
+
+
+@pytest.mark.django_db
+def test_client_portal_document_otp_is_locked_after_failed_attempts(
+    client_portal_context,
+    settings,
+):
+    settings.CLIENT_ACCESS_OTP_MAX_ATTEMPTS = 2
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    raw_otp, _ = _request_document_otp(client_portal_context, raw_token)
+    portal_client = _portal_client(raw_token)
+    url = (
+        f"/api/v1/client-space/contracts/"
+        f"{client_portal_context['contract_a'].id}/documents/attestation/"
+    )
+
+    first_failed = portal_client.get(url, HTTP_X_CLIENT_OTP="000000")
+    second_failed = portal_client.get(url, HTTP_X_CLIENT_OTP="111111")
+    correct_after_lock = portal_client.get(url, HTTP_X_CLIENT_OTP=raw_otp)
+    otp = ClientAccessOtp.objects.get()
+
+    assert first_failed.status_code == status.HTTP_403_FORBIDDEN
+    assert second_failed.status_code == status.HTTP_403_FORBIDDEN
+    assert correct_after_lock.status_code == status.HTTP_403_FORBIDDEN
+    assert otp.failed_attempts == 2
+    assert otp.revoked_at is not None
+    assert AuditLog.objects.filter(
+        action=AuditLog.Action.CLIENT_ACCESS_OTP_FAILED,
+    ).count() >= 2
 
 
 @pytest.mark.django_db
