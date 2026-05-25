@@ -15,7 +15,8 @@ Stack cible :
 - Web : Next.js / React
 - Mobile : Flutter
 
-Le depot actuel contient le backend. Les clients web et mobile restent a creer.
+Le depot contient le backend Django et un frontend web Next.js MVP. Le client
+mobile reste a creer.
 
 ## Modules backend
 
@@ -119,6 +120,19 @@ Depuis `backend/` :
 Les tests couvrent surtout l'isolation multi-groupe, les permissions par role,
 les wallets, les paiements, les contrats, l'integration ASS preparee, les
 commissions, l'audit, les notifications et le durcissement API.
+
+Depuis `frontend/` :
+
+```powershell
+npm install
+npm run test
+npm run typecheck
+npm run build
+```
+
+Le frontend utilise `BACKEND_API_BASE_URL`, par defaut
+`http://127.0.0.1:8000/api/v1`. Les JWT backend sont conserves cote Next.js en
+cookies HttpOnly via proxy interne ; ils ne sont pas stockes en `localStorage`.
 
 ## Calcul ASS des devis
 
@@ -240,8 +254,8 @@ endpoints attendus par le prompt initial, conserve les routes versionnees deja
 utilisees par les tests et dispose d'un calcul RC ASS optionnel pour les devis
 avec routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage.
 
-Le backend phase 16 faisable en dev est termine. Les prochaines validations
-portent sur les sandbox ASS restantes
-`GARAGE`/`FLEET`/`SCHOOL_BUS`, les callbacks sandbox Wave et Orange Money, la
-livraison reelle SMS/email des liens et OTP client, puis la preparation des
-clients web/mobile.
+La phase 17 est terminee pour le MVP web interne faisable en dev : auth JWT via
+cookies HttpOnly, dashboard, formulaires metier, selects relationnels, vues
+detail et tests frontend. Les prochaines validations portent sur `SCHOOL_BUS`
+QR, `GARAGE` RC/QR, `FLEET` RC, les callbacks sandbox Wave et Orange Money, puis
+la livraison reelle SMS/email des liens et OTP client.

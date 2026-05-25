@@ -25,6 +25,14 @@ staticfiles/
 .pytest_cache/
 .coverage
 htmlcov/
+*.log
+
+# Frontend
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
 
 # IDE/editor
 .idea/

@@ -40,9 +40,10 @@ Stack cible :
 - Phase 15 : socle webhooks paiement implemente et teste localement ; callbacks
   sandbox Wave et Orange Money encore a valider avec les providers.
 - Phase 16 : terminee pour le perimetre backend/dev faisable sans provider
-  externe ; livraison reelle SMS/email et interfaces frontend/mobile restent
-  hors validation locale.
-- Phase 17 : non demarree.
+  externe ; livraison reelle SMS/email et mobile restent hors validation locale.
+- Phase 17 : terminee pour le MVP web interne faisable en dev : frontend
+  Next.js, proxy JWT HttpOnly, dashboard, formulaires metier, vues detail et
+  tests frontend.
 - Phase 18 : non demarree.
 
 ## Phases 1 a 12 formalisees
@@ -437,14 +438,36 @@ Contraintes design :
 - Icons professionnelles.
 - UI sobre, dense et orientee gestion.
 
+Etat : terminee pour le MVP web interne faisable en dev.
+
+Fait :
+
+- Application Next.js dans `frontend/`.
+- Authentification JWT via proxy Next.js ; les tokens sont stockes en cookies
+  HttpOnly et ne sont plus exposes au navigateur via `localStorage`.
+- Shell applicatif protege avec navigation adaptee au role utilisateur.
+- Dashboard connecte a `/api/v1/dashboard/`.
+- Pages de gestion pour groupes, utilisateurs, apporteurs, clients,
+  vehicules, devis, paiements, contrats, acces client, commissions, wallets,
+  audit logs et notifications.
+- Formulaires metier avec champs dedies, selects relationnels et conversion
+  des payloads avant envoi backend.
+- Recherche, pagination, vues detail metier, creation, modification et
+  suppression quand l'endpoint backend l'autorise.
+- Actions internes prudentes exposees pour paiements, notifications et jetons
+  client ; aucune action d'emission ASS/QR externe n'est declenchee depuis le
+  frontend MVP.
+- Suite de tests frontend automatisee avec Vitest.
+- Override `postcss` applique pour corriger l'audit npm sans downgrade Next.js.
+
 Taches :
 
-- Auth JWT.
-- Dashboard admin general.
-- Dashboard admin groupe.
-- Dashboard apporteur.
-- CRUD groupes, utilisateurs, clients, vehicules, devis, contrats.
-- Consultation paiements, commissions, audit logs.
+- Ajouter des tests end-to-end navigateur quand un jeu de donnees seed stable
+  sera disponible.
+- Ajouter les actions sensibles restantes avec confirmations metier et
+  garde-fous explicites, notamment avant toute emission ASS/QR.
+- Brancher les ecrans client final si le portail web doit etre livre dans
+  Next.js avant le mobile.
 
 ### Phase 18 - Mobile Flutter
 
@@ -474,7 +497,7 @@ Taches :
   confirmes en sandbox provider.
 - Les liens et OTP client ne sont pas encore envoyes par vrai provider
   SMS/email.
-- Le frontend et le mobile ne sont pas encore crees.
+- Le frontend web Next.js MVP existe ; le mobile Flutter n'est pas encore cree.
 
 ## Regle de maintenance
 
