@@ -101,6 +101,8 @@ Variables importantes :
 - `ORANGE_MONEY_WEBHOOK_SECRET`
 - `PAYMENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS`
 - `CLIENT_ACCESS_TOKEN_TTL_DAYS`
+- `CLIENT_ACCESS_MESSAGE_PROVIDER`
+- `CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE`
 - `CLIENT_ACCESS_OTP_TTL_MINUTES`
 - `CLIENT_ACCESS_OTP_LENGTH`
 - `CLIENT_ACCESS_OTP_MAX_ATTEMPTS`
@@ -214,9 +216,10 @@ Endpoints disponibles :
 - `POST /api/v1/client-space/notifications/{id}/mark-read/`
 - `POST /api/v1/client-space/notifications/mark-all-read/`
 
-Le renvoi de lien ne contacte encore aucun vrai service SMS/email. Par securite,
-il genere un nouveau jeton et revoque l'ancien, car le jeton clair n'est jamais
-stocke.
+Le renvoi de lien passe par une abstraction de remise client. En dev/test, le
+provider configure est mocke et ne contacte aucun vrai service SMS/email. Par
+securite, il genere un nouveau jeton et revoque l'ancien, car le jeton clair
+n'est jamais stocke.
 
 Les URLs documentaires externes ne sont pas exposees directement dans l'espace
 client. Le backend expose seulement la disponibilite des documents. Pour
@@ -225,6 +228,11 @@ mocke via `/documents/otp/`, puis appeler la route de telechargement avec le
 header `X-Client-OTP`. L'OTP est stocke uniquement sous forme hashee, expire
 rapidement, est a usage unique et se verrouille apres trop d'essais invalides.
 
+En local/test, `CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE=True` permet de
+recuperer le token ou l'OTP brut pour developper sans provider externe. En
+production, le setting production le desactive par defaut afin que les secrets
+soient remis uniquement par le provider configure.
+
 ## Etat de phase
 
 Le depot est aligne sur une phase 16 backend MVP. Le backend expose les
@@ -232,7 +240,8 @@ endpoints attendus par le prompt initial, conserve les routes versionnees deja
 utilisees par les tests et dispose d'un calcul RC ASS optionnel pour les devis
 avec routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage.
 
-Les prochaines validations portent sur les sandbox ASS restantes
+Le backend phase 16 faisable en dev est termine. Les prochaines validations
+portent sur les sandbox ASS restantes
 `GARAGE`/`FLEET`/`SCHOOL_BUS`, les callbacks sandbox Wave et Orange Money, la
 livraison reelle SMS/email des liens et OTP client, puis la preparation des
 clients web/mobile.

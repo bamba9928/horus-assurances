@@ -232,6 +232,8 @@ def test_contributor_can_create_client_access_token(client_portal_context):
     access_token = ClientAccessToken.objects.get(id=token_id)
     assert raw_token.startswith("hca_")
     assert response_data["mock_delivery"] is True
+    assert response_data["provider"] == "mock"
+    assert response_data["secret_returned"] is True
     assert response_data["access_url"].find(raw_token) > 0
     assert access_token.partner_group == client_portal_context["group"]
     assert access_token.client == client_portal_context["client_a"]
@@ -244,6 +246,39 @@ def test_contributor_can_create_client_access_token(client_portal_context):
         action=AuditLog.Action.CLIENT_ACCESS_LINK_SENT,
         target_id=str(access_token.id),
     ).exists()
+    assert AuditLog.objects.get(
+        action=AuditLog.Action.CLIENT_ACCESS_LINK_SENT,
+        target_id=str(access_token.id),
+    ).metadata["provider"] == "mock"
+
+
+@pytest.mark.django_db
+def test_client_access_token_response_hides_secret_when_disabled(
+    client_portal_context,
+    settings,
+):
+    settings.CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE = False
+    client = APIClient()
+    client.force_authenticate(client_portal_context["contributor"])
+    contract = client_portal_context["contract_a"]
+
+    response = client.post(
+        "/api/v1/client-access-tokens/",
+        {
+            "client": contract.client_id,
+            "contract": contract.id,
+            "delivery_channel": ClientAccessToken.DeliveryChannel.SMS,
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data["token"] is None
+    assert response.data["access_url"] == ""
+    assert response.data["secret_returned"] is False
+    assert response.data["mock_delivery"] is True
+    assert response.data["provider"] == "mock"
+    assert ClientAccessToken.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -462,6 +497,8 @@ def test_client_portal_document_otp_is_mocked_and_not_stored_in_clear_text(
     otp = ClientAccessOtp.objects.get()
 
     assert response_data["mock_delivery"] is True
+    assert response_data["provider"] == "mock"
+    assert response_data["secret_returned"] is True
     assert response_data["document_kind"] == "attestation"
     assert raw_otp.isdigit()
     assert otp.otp_hash != raw_otp
@@ -475,6 +512,32 @@ def test_client_portal_document_otp_is_mocked_and_not_stored_in_clear_text(
         action=AuditLog.Action.CLIENT_ACCESS_OTP_SENT,
         target_id=str(otp.id),
     ).exists()
+    assert AuditLog.objects.get(
+        action=AuditLog.Action.CLIENT_ACCESS_OTP_SENT,
+        target_id=str(otp.id),
+    ).metadata["provider"] == "mock"
+
+
+@pytest.mark.django_db
+def test_client_portal_document_otp_response_hides_secret_when_disabled(
+    client_portal_context,
+    settings,
+):
+    raw_token, _, _ = _issue_access_token(client_portal_context)
+    settings.CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE = False
+
+    response = _portal_client(raw_token).post(
+        f"/api/v1/client-space/contracts/{client_portal_context['contract_a'].id}/documents/otp/",
+        {"document_kind": "attestation"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data["otp"] is None
+    assert response.data["secret_returned"] is False
+    assert response.data["mock_delivery"] is True
+    assert response.data["provider"] == "mock"
+    assert ClientAccessOtp.objects.count() == 1
 
 
 @pytest.mark.django_db

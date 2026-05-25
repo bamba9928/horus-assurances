@@ -1,5 +1,6 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
+from django.conf import settings
 from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -253,11 +254,13 @@ class ClientPortalDocumentOtpCreateView(ClientPortalBaseView):
             delivery_channel=serializer.validated_data.get("delivery_channel"),
         )
         payload = {
-            "otp": raw_otp,
+            "otp": raw_otp if settings.CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE else None,
             "document_kind": document_kind,
             "mock_delivery": delivery["mock_delivery"],
+            "provider": delivery["provider"],
             "delivery_channel": delivery["delivery_channel"],
             "destination": delivery["destination"],
+            "secret_returned": settings.CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE,
             "expires_at": otp.expires_at,
         }
         return Response(
@@ -368,11 +371,17 @@ def _client_notifications(client):
 def _access_token_response(access_token, raw_token, delivery):
     payload = {
         "access_token": ClientAccessTokenSerializer(access_token).data,
-        "token": raw_token,
-        "access_url": delivery["access_url"],
+        "token": raw_token if settings.CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE else None,
+        "access_url": (
+            delivery["access_url"]
+            if settings.CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE
+            else ""
+        ),
         "mock_delivery": delivery["mock_delivery"],
+        "provider": delivery["provider"],
         "delivery_channel": delivery["delivery_channel"],
         "destination": delivery["destination"],
+        "secret_returned": settings.CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE,
         "expires_at": access_token.expires_at,
     }
     return ClientAccessTokenResponseSerializer(payload).data

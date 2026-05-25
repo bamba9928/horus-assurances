@@ -162,6 +162,15 @@ CLIENT_ACCESS_TOKEN_TTL_DAYS = config(
     default=30,
     cast=int,
 )
+CLIENT_ACCESS_MESSAGE_PROVIDER = config(
+    "CLIENT_ACCESS_MESSAGE_PROVIDER",
+    default="apps.clients.messages.MockClientMessageProvider",
+)
+CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE = config(
+    "CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE",
+    default=True,
+    cast=bool,
+)
 CLIENT_ACCESS_OTP_TTL_MINUTES = config(
     "CLIENT_ACCESS_OTP_TTL_MINUTES",
     default=10,

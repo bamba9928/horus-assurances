@@ -26,9 +26,9 @@ Stack cible :
   sandbox reelles `GARAGE`, `FLEET` et `SCHOOL_BUS` encore a faire.
 - Phase 15 : socle webhooks paiement implemente et teste localement ; callbacks
   sandbox Wave et Orange Money encore a valider avec les providers.
-- Phase 16 : socle backend espace client et OTP documents sensibles implementes
-  et testes localement ; livraison reelle SMS/email et interfaces
-  frontend/mobile encore a faire.
+- Phase 16 : terminee pour le perimetre backend/dev faisable sans provider
+  externe ; livraison reelle SMS/email et interfaces frontend/mobile restent
+  hors validation locale.
 - Phase 17 : non demarree.
 - Phase 18 : non demarree.
 
@@ -179,13 +179,18 @@ Stack cible :
     des indicateurs de disponibilite
   - OTP a expiration courte, usage unique, rotation par nouvelle demande et
     verrouillage apres trop d'essais invalides
+  - abstraction `ClientMessageProvider` avec provider mock local/test
+  - flag `CLIENT_ACCESS_RETURN_SECRETS_IN_RESPONSE` pour retourner les secrets
+    bruts seulement en dev/test
+  - setting production qui desactive par defaut le retour API des tokens/OTP
+    bruts
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `212 passed`
+- Suite complete backend : `214 passed`
 - Tests cibles ASS apres ajout Bus Ecole et commande RC sandbox : `44 passed`
 - Tests cibles paiements phase 15 : `26 passed`
-- Tests cibles espace client phase 16 : `22 passed`
+- Tests cibles espace client phase 16 : `24 passed`
 - Tests cibles clients/notifications/contrats/paiements apres OTP : `106 passed`
 - `manage.py check` : OK
 - `makemigrations --check --dry-run` : OK
@@ -346,8 +351,8 @@ Reste a faire :
 
 Objectif : permettre au client final de consulter ses documents.
 
-Etat : socle backend MVP implemente et teste localement ; livraison reelle et
-interfaces restantes.
+Etat : termine pour le backend faisable en dev sans provider externe ; livraison
+reelle et interfaces restantes.
 
 Fait :
 
@@ -363,14 +368,18 @@ Fait :
 - Telechargement attestation.
 - Telechargement carte brune.
 - Notifications client.
+- OTP documents sensibles hashe, expire, usage unique et verrouillable.
+- Provider de remise client abstrait avec implementation mock local/test.
+- Retour des secrets bruts configurable et desactive par defaut en production.
 - Tests de securite : expiration, revocation, autre groupe, rotation, absence de
-  stockage clair et refus document sans jeton valide.
+  stockage clair, refus document sans jeton valide, OTP expire/revoque/usage
+  unique/mauvais usage/verrouillage.
 
 Reste a faire :
 
-- Brancher un vrai provider SMS/email apres validation du format de message.
-- Brancher l'envoi reel des OTP via SMS/email apres choix provider.
-- Ajouter les ecrans frontend/mobile de consultation client.
+- Hors dev local : choisir et brancher un vrai provider SMS/email.
+- Hors dev local : valider les formats de messages client avec le provider.
+- Phase frontend/mobile : ajouter les ecrans de consultation client.
 
 ### Phase 17 - Frontend Next.js
 

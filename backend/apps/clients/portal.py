@@ -12,6 +12,7 @@ from rest_framework import exceptions
 from apps.audit.models import AuditLog
 from apps.audit.services import record_audit_event
 
+from .messages import get_client_message_provider
 from .models import ClientAccessOtp, ClientAccessToken
 
 TOKEN_PREFIX = "hca_"
@@ -57,8 +58,9 @@ def create_client_access_token(
         target=access_token,
         metadata={
             **_audit_metadata(access_token),
-            "mock_delivery": True,
-            "delivery_channel": access_token.delivery_channel,
+            "mock_delivery": delivery["mock_delivery"],
+            "provider": delivery["provider"],
+            "delivery_channel": delivery["delivery_channel"],
         },
     )
     return raw_token, access_token, delivery
@@ -190,8 +192,9 @@ def create_client_access_otp(*, access_token, purpose, delivery_channel=None):
         target=otp,
         metadata={
             **_otp_audit_metadata(otp),
-            "mock_delivery": True,
-            "delivery_channel": otp.delivery_channel,
+            "mock_delivery": delivery["mock_delivery"],
+            "provider": delivery["provider"],
+            "delivery_channel": delivery["delivery_channel"],
         },
     )
     return raw_otp, otp, delivery
@@ -289,12 +292,10 @@ def extract_raw_otp(request):
 
 def build_client_access_delivery(*, access_token, raw_token):
     access_url = build_client_access_url(raw_token=raw_token, contract_id=access_token.contract_id)
-    return {
-        "mock_delivery": True,
-        "delivery_channel": access_token.delivery_channel,
-        "destination": _delivery_destination(access_token),
-        "access_url": access_url,
-    }
+    return get_client_message_provider().send_access_link(
+        access_token=access_token,
+        access_url=access_url,
+    ).as_payload()
 
 
 def build_client_access_url(*, raw_token, contract_id):
@@ -304,19 +305,7 @@ def build_client_access_url(*, raw_token, contract_id):
 
 
 def build_client_otp_delivery(*, otp):
-    return {
-        "mock_delivery": True,
-        "delivery_channel": otp.delivery_channel,
-        "destination": _delivery_destination(otp),
-    }
-
-
-def _delivery_destination(access_token):
-    if access_token.delivery_channel == ClientAccessToken.DeliveryChannel.EMAIL:
-        return access_token.client.email
-    if access_token.delivery_channel == ClientAccessToken.DeliveryChannel.SMS:
-        return access_token.client.phone
-    return ""
+    return get_client_message_provider().send_document_otp(otp=otp).as_payload()
 
 
 def _audit_metadata(access_token):

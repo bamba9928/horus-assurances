@@ -166,11 +166,13 @@ class ClientAccessTokenRenewSerializer(serializers.Serializer):
 
 class ClientAccessTokenResponseSerializer(serializers.Serializer):
     access_token = serializers.DictField(read_only=True)
-    token = serializers.CharField(read_only=True)
-    access_url = serializers.CharField(read_only=True)
+    token = serializers.CharField(read_only=True, allow_null=True)
+    access_url = serializers.CharField(read_only=True, allow_blank=True)
     mock_delivery = serializers.BooleanField(read_only=True)
+    provider = serializers.CharField(read_only=True)
     delivery_channel = serializers.CharField(read_only=True)
     destination = serializers.CharField(read_only=True, allow_blank=True)
+    secret_returned = serializers.BooleanField(read_only=True)
     expires_at = serializers.DateTimeField(read_only=True)
 
 
@@ -284,11 +286,13 @@ class ClientPortalDocumentOtpCreateSerializer(serializers.Serializer):
 
 
 class ClientPortalDocumentOtpResponseSerializer(serializers.Serializer):
-    otp = serializers.CharField(read_only=True)
+    otp = serializers.CharField(read_only=True, allow_null=True)
     document_kind = serializers.CharField(read_only=True)
     mock_delivery = serializers.BooleanField(read_only=True)
+    provider = serializers.CharField(read_only=True)
     delivery_channel = serializers.CharField(read_only=True)
     destination = serializers.CharField(read_only=True, allow_blank=True)
+    secret_returned = serializers.BooleanField(read_only=True)
     expires_at = serializers.DateTimeField(read_only=True)
 
 
