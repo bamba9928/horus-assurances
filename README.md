@@ -133,6 +133,10 @@ npm run build
 Le frontend utilise `BACKEND_API_BASE_URL`, par defaut
 `http://127.0.0.1:8000/api/v1`. Les JWT backend sont conserves cote Next.js en
 cookies HttpOnly via proxy interne ; ils ne sont pas stockes en `localStorage`.
+Le portail client web est disponible sur `/client` et accepte aussi les liens
+generes vers `/client-space/access?token=...`. Le jeton client brut est conserve
+dans un cookie HttpOnly cote Next.js, puis transmis au backend par le proxy
+interne `/api/client-space`.
 
 ## Calcul ASS des devis
 
@@ -256,6 +260,6 @@ avec routage produit, incluant auto, moto, flotte, remorque, bus ecole et garage
 
 La phase 17 est terminee pour le MVP web interne faisable en dev : auth JWT via
 cookies HttpOnly, dashboard, formulaires metier, selects relationnels, vues
-detail et tests frontend. Les prochaines validations portent sur `SCHOOL_BUS`
-QR, `GARAGE` RC/QR, `FLEET` RC, les callbacks sandbox Wave et Orange Money, puis
-la livraison reelle SMS/email des liens et OTP client.
+detail, portail client web minimal et tests frontend. Les prochaines validations
+portent sur `SCHOOL_BUS` QR, `GARAGE` RC/QR, `FLEET` RC, les callbacks sandbox
+Wave et Orange Money, puis la livraison reelle SMS/email des liens et OTP client.

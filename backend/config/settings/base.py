@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.clients",
     "apps.vehicles",
+    "apps.reference_data",
     "apps.quotes",
     "apps.payments",
     "apps.contracts",

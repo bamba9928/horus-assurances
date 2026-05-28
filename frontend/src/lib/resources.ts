@@ -22,7 +22,9 @@ export type ResourceFormField = {
   name: string;
   label: string;
   type:
+    | "ass-product-data"
     | "checkbox"
+    | "coverage-options"
     | "date"
     | "email"
     | "json"
@@ -36,16 +38,38 @@ export type ResourceFormField = {
     | "textarea";
   defaultValue?: unknown;
   helper?: string;
+  inputMode?: "decimal" | "email" | "numeric" | "tel" | "text";
+  layout?: "full";
+  max?: number;
+  min?: number;
   omitIfBlank?: boolean;
   options?: SelectOption[];
+  placeholder?: string;
   relation?: RelationConfig;
   required?: boolean;
+  section?: string;
+  step?: number | string;
+  transform?: "uppercase";
 };
 
 export type ResourceAction = {
   label: string;
   action: string;
   confirm?: string;
+  guard?: {
+    title: string;
+    description: string;
+    confirmationValue: string;
+    preflightAction?: string;
+    previewLabel?: string;
+    warningItems?: string[];
+  };
+  disabledWhen?: {
+    field: string;
+    equals?: unknown;
+    notEquals?: unknown;
+    reason: string;
+  };
 };
 
 export type ResourceDefinition = {
@@ -100,14 +124,28 @@ const CONTRACT_RELATION = {
 };
 
 const groupFields: ResourceFormField[] = [
-  { name: "name", label: "Nom", type: "text", required: true },
-  { name: "slug", label: "Slug", type: "text", omitIfBlank: true },
+  {
+    name: "name",
+    label: "Nom",
+    type: "text",
+    required: true,
+    section: "Identification",
+  },
+  {
+    name: "slug",
+    label: "Slug",
+    type: "text",
+    helper: "Laisser vide pour conserver la generation automatique si elle est active cote backend.",
+    omitIfBlank: true,
+    section: "Identification",
+  },
   {
     name: "status",
     label: "Statut",
     type: "select",
     defaultValue: "ACTIVE",
     required: true,
+    section: "Etat",
     options: [
       { label: "Actif", value: "ACTIVE" },
       { label: "Suspendu", value: "SUSPENDED" },
@@ -117,16 +155,17 @@ const groupFields: ResourceFormField[] = [
 ];
 
 const userFields: ResourceFormField[] = [
-  { name: "username", label: "Identifiant", type: "text", required: true },
-  { name: "email", label: "Email", type: "email" },
-  { name: "first_name", label: "Prenom", type: "text" },
-  { name: "last_name", label: "Nom", type: "text" },
+  { name: "username", label: "Identifiant", type: "text", required: true, section: "Compte" },
+  { name: "email", label: "Email", type: "email", section: "Compte" },
+  { name: "first_name", label: "Prenom", type: "text", section: "Identite" },
+  { name: "last_name", label: "Nom", type: "text", section: "Identite" },
   {
     name: "role",
     label: "Role",
     type: "select",
     defaultValue: "CONTRIBUTOR",
     required: true,
+    section: "Droits",
     options: [
       { label: "Admin general", value: "GENERAL_ADMIN" },
       { label: "Admin groupe", value: "GROUP_ADMIN" },
@@ -139,15 +178,17 @@ const userFields: ResourceFormField[] = [
     type: "relation",
     relation: GROUP_RELATION,
     omitIfBlank: true,
+    section: "Droits",
   },
-  { name: "phone", label: "Telephone", type: "tel" },
+  { name: "phone", label: "Telephone", type: "tel", inputMode: "tel", section: "Identite" },
   {
     name: "password",
     label: "Mot de passe",
     type: "password",
     omitIfBlank: true,
+    section: "Compte",
   },
-  { name: "is_active", label: "Actif", type: "checkbox", defaultValue: true },
+  { name: "is_active", label: "Actif", type: "checkbox", defaultValue: true, section: "Etat" },
 ];
 
 const contributorFields: ResourceFormField[] = userFields.filter(
@@ -161,6 +202,7 @@ const clientFields: ResourceFormField[] = [
     type: "relation",
     relation: GROUP_RELATION,
     omitIfBlank: true,
+    section: "Rattachement",
   },
   {
     name: "contributor",
@@ -168,6 +210,7 @@ const clientFields: ResourceFormField[] = [
     type: "relation",
     relation: CONTRIBUTOR_RELATION,
     omitIfBlank: true,
+    section: "Rattachement",
   },
   {
     name: "client_type",
@@ -175,19 +218,27 @@ const clientFields: ResourceFormField[] = [
     type: "select",
     defaultValue: "INDIVIDUAL",
     required: true,
+    section: "Identite",
     options: [
       { label: "Personne physique", value: "INDIVIDUAL" },
       { label: "Personne morale", value: "COMPANY" },
     ],
   },
-  { name: "first_name", label: "Prenom", type: "text" },
-  { name: "last_name", label: "Nom", type: "text" },
-  { name: "company_name", label: "Societe", type: "text" },
-  { name: "email", label: "Email", type: "email" },
-  { name: "phone", label: "Telephone", type: "tel", required: true },
-  { name: "address", label: "Adresse", type: "textarea" },
-  { name: "identity_number", label: "Piece identite", type: "text" },
-  { name: "is_active", label: "Actif", type: "checkbox", defaultValue: true },
+  { name: "first_name", label: "Prenom", type: "text", section: "Identite" },
+  { name: "last_name", label: "Nom", type: "text", section: "Identite" },
+  { name: "company_name", label: "Societe", type: "text", section: "Identite" },
+  { name: "email", label: "Email", type: "email", section: "Contact" },
+  {
+    name: "phone",
+    label: "Telephone",
+    type: "tel",
+    inputMode: "tel",
+    required: true,
+    section: "Contact",
+  },
+  { name: "address", label: "Adresse", type: "textarea", layout: "full", section: "Contact" },
+  { name: "identity_number", label: "Piece identite", type: "text", section: "Identite" },
+  { name: "is_active", label: "Actif", type: "checkbox", defaultValue: true, section: "Etat" },
 ];
 
 const vehicleFields: ResourceFormField[] = [
@@ -197,6 +248,7 @@ const vehicleFields: ResourceFormField[] = [
     type: "relation",
     relation: GROUP_RELATION,
     omitIfBlank: true,
+    section: "Rattachement",
   },
   {
     name: "client",
@@ -204,6 +256,7 @@ const vehicleFields: ResourceFormField[] = [
     type: "relation",
     relation: CLIENT_RELATION,
     required: true,
+    section: "Rattachement",
   },
   {
     name: "contributor",
@@ -211,23 +264,42 @@ const vehicleFields: ResourceFormField[] = [
     type: "relation",
     relation: CONTRIBUTOR_RELATION,
     omitIfBlank: true,
+    section: "Rattachement",
   },
   {
     name: "registration_number",
     label: "Immatriculation",
     type: "text",
     required: true,
+    placeholder: "DK-1234-AA",
+    section: "Vehicule",
+    transform: "uppercase",
   },
-  { name: "brand", label: "Marque", type: "text", required: true },
-  { name: "model", label: "Modele", type: "text", required: true },
-  { name: "chassis_number", label: "Chassis", type: "text" },
-  { name: "genre", label: "Genre ASS", type: "text", required: true, defaultValue: "VP" },
+  { name: "brand", label: "Marque", type: "text", required: true, section: "Vehicule" },
+  { name: "model", label: "Modele", type: "text", required: true, section: "Vehicule" },
+  {
+    name: "chassis_number",
+    label: "Chassis",
+    type: "text",
+    section: "Vehicule",
+    transform: "uppercase",
+  },
+  {
+    name: "genre",
+    label: "Genre ASS",
+    type: "text",
+    required: true,
+    defaultValue: "VP",
+    section: "Caracteristiques ASS",
+    transform: "uppercase",
+  },
   {
     name: "energy",
     label: "Energie",
     type: "select",
     defaultValue: "ESSENCE",
     required: true,
+    section: "Caracteristiques ASS",
     options: [
       { label: "Essence", value: "ESSENCE" },
       { label: "Diesel", value: "DIESEL" },
@@ -235,12 +307,48 @@ const vehicleFields: ResourceFormField[] = [
       { label: "Hybride", value: "HYBRIDE" },
     ],
   },
-  { name: "fiscal_power", label: "Puissance fiscale", type: "number" },
-  { name: "seats", label: "Places", type: "number", defaultValue: 5 },
-  { name: "first_registration_date", label: "1ere mise en circulation", type: "date" },
-  { name: "new_value", label: "Valeur neuve", type: "money" },
-  { name: "current_value", label: "Valeur actuelle", type: "money" },
-  { name: "is_active", label: "Actif", type: "checkbox", defaultValue: true },
+  {
+    name: "fiscal_power",
+    label: "Puissance fiscale",
+    type: "number",
+    inputMode: "numeric",
+    min: 0,
+    section: "Caracteristiques ASS",
+  },
+  {
+    name: "seats",
+    label: "Places",
+    type: "number",
+    defaultValue: 5,
+    inputMode: "numeric",
+    min: 1,
+    section: "Caracteristiques ASS",
+  },
+  {
+    name: "first_registration_date",
+    label: "1ere mise en circulation",
+    type: "date",
+    section: "Vehicule",
+  },
+  {
+    name: "new_value",
+    label: "Valeur neuve",
+    type: "money",
+    inputMode: "decimal",
+    min: 0,
+    step: "0.01",
+    section: "Valeurs",
+  },
+  {
+    name: "current_value",
+    label: "Valeur actuelle",
+    type: "money",
+    inputMode: "decimal",
+    min: 0,
+    step: "0.01",
+    section: "Valeurs",
+  },
+  { name: "is_active", label: "Actif", type: "checkbox", defaultValue: true, section: "Etat" },
 ];
 
 const quoteFields: ResourceFormField[] = [
@@ -250,14 +358,23 @@ const quoteFields: ResourceFormField[] = [
     type: "relation",
     relation: GROUP_RELATION,
     omitIfBlank: true,
+    section: "Rattachement",
   },
-  { name: "client", label: "Client", type: "relation", relation: CLIENT_RELATION, required: true },
+  {
+    name: "client",
+    label: "Client",
+    type: "relation",
+    relation: CLIENT_RELATION,
+    required: true,
+    section: "Rattachement",
+  },
   {
     name: "vehicle",
     label: "Vehicule",
     type: "relation",
     relation: VEHICLE_RELATION,
     required: true,
+    section: "Rattachement",
   },
   {
     name: "contributor",
@@ -265,6 +382,7 @@ const quoteFields: ResourceFormField[] = [
     type: "relation",
     relation: CONTRIBUTOR_RELATION,
     omitIfBlank: true,
+    section: "Rattachement",
   },
   {
     name: "product_type",
@@ -272,6 +390,7 @@ const quoteFields: ResourceFormField[] = [
     type: "select",
     defaultValue: "AUTO",
     required: true,
+    section: "Produit",
     options: [
       { label: "Auto", value: "AUTO" },
       { label: "Moto", value: "MOTO" },
@@ -287,50 +406,112 @@ const quoteFields: ResourceFormField[] = [
     type: "select",
     defaultValue: "MOIS",
     required: true,
+    section: "Produit",
     options: [
       { label: "Jours", value: "JOURS" },
       { label: "Mois", value: "MOIS" },
       { label: "Annees", value: "ANNEES" },
     ],
   },
-  { name: "duration", label: "Duree", type: "number", defaultValue: 12, required: true },
-  { name: "effective_date", label: "Date effet", type: "date" },
-  { name: "expiration_date", label: "Date expiration", type: "date" },
+  {
+    name: "duration",
+    label: "Duree",
+    type: "number",
+    defaultValue: 12,
+    inputMode: "numeric",
+    min: 1,
+    max: 120,
+    required: true,
+    section: "Produit",
+  },
+  { name: "effective_date", label: "Date effet", type: "date", section: "Periode" },
+  { name: "expiration_date", label: "Date expiration", type: "date", section: "Periode" },
   {
     name: "coverage_options",
-    label: "Garanties",
-    type: "json",
+    label: "Garanties optionnelles",
+    type: "coverage-options",
     defaultValue: [],
-    helper: "Tableau JSON, par exemple [1,2,4].",
+    helper: "Selection rapide des codes de garanties ASS courants.",
+    layout: "full",
+    section: "Garanties",
   },
   {
     name: "ass_product_data",
     label: "Donnees produit ASS",
-    type: "json",
+    type: "ass-product-data",
     defaultValue: {},
-    helper: "Objet JSON transitoire pour les produits ASS avances.",
+    helper: "Champs transmis dans ass_product_data selon le produit choisi.",
+    layout: "full",
+    section: "Produit ASS",
   },
-  { name: "civil_liability_amount", label: "RC", type: "money", defaultValue: "0.00" },
-  { name: "premium_amount", label: "Prime", type: "money", defaultValue: "0.00" },
-  { name: "fees_amount", label: "Frais", type: "money", defaultValue: "0.00" },
+  {
+    name: "civil_liability_amount",
+    label: "RC",
+    type: "money",
+    defaultValue: "0.00",
+    inputMode: "decimal",
+    min: 0,
+    step: "0.01",
+    section: "Montants",
+  },
+  {
+    name: "premium_amount",
+    label: "Prime",
+    type: "money",
+    defaultValue: "0.00",
+    inputMode: "decimal",
+    min: 0,
+    step: "0.01",
+    section: "Montants",
+  },
+  {
+    name: "fees_amount",
+    label: "Frais",
+    type: "money",
+    defaultValue: "0.00",
+    inputMode: "decimal",
+    min: 0,
+    step: "0.01",
+    section: "Montants",
+  },
 ];
 
 const paymentFields: ResourceFormField[] = [
-  { name: "quote", label: "Devis", type: "relation", relation: QUOTE_RELATION, required: true },
+  {
+    name: "quote",
+    label: "Devis",
+    type: "relation",
+    relation: QUOTE_RELATION,
+    required: true,
+    section: "Dossier",
+  },
   {
     name: "method",
     label: "Methode",
     type: "select",
     defaultValue: "WALLET",
     required: true,
+    section: "Encaissement",
     options: [
       { label: "Wallet", value: "WALLET" },
       { label: "Wave", value: "WAVE" },
       { label: "Orange Money", value: "ORANGE_MONEY" },
     ],
   },
-  { name: "external_reference", label: "Reference externe", type: "text" },
-  { name: "idempotency_key", label: "Cle idempotence", type: "text" },
+  {
+    name: "external_reference",
+    label: "Reference externe",
+    type: "text",
+    helper: "Reference provider ou transactionnelle si deja connue.",
+    section: "Encaissement",
+  },
+  {
+    name: "idempotency_key",
+    label: "Cle idempotence",
+    type: "text",
+    helper: "Cle unique recommandee pour eviter les doublons d'action.",
+    section: "Securite",
+  },
 ];
 
 const contractFields: ResourceFormField[] = [
@@ -340,17 +521,26 @@ const contractFields: ResourceFormField[] = [
     type: "relation",
     relation: PAYMENT_RELATION,
     required: true,
+    section: "Emission",
   },
 ];
 
 const clientAccessFields: ResourceFormField[] = [
-  { name: "client", label: "Client", type: "relation", relation: CLIENT_RELATION, required: true },
+  {
+    name: "client",
+    label: "Client",
+    type: "relation",
+    relation: CLIENT_RELATION,
+    required: true,
+    section: "Beneficiaire",
+  },
   {
     name: "contract",
     label: "Contrat",
     type: "relation",
     relation: CONTRACT_RELATION,
     required: true,
+    section: "Beneficiaire",
   },
   {
     name: "delivery_channel",
@@ -358,13 +548,23 @@ const clientAccessFields: ResourceFormField[] = [
     type: "select",
     defaultValue: "MANUAL",
     required: true,
+    section: "Remise",
     options: [
       { label: "Manuel", value: "MANUAL" },
       { label: "SMS", value: "SMS" },
       { label: "Email", value: "EMAIL" },
     ],
   },
-  { name: "expires_in_days", label: "Expiration en jours", type: "number", defaultValue: 30 },
+  {
+    name: "expires_in_days",
+    label: "Expiration en jours",
+    type: "number",
+    defaultValue: 30,
+    inputMode: "numeric",
+    min: 1,
+    max: 365,
+    section: "Remise",
+  },
 ];
 
 const commissionRuleFields: ResourceFormField[] = [
@@ -374,6 +574,7 @@ const commissionRuleFields: ResourceFormField[] = [
     type: "relation",
     relation: GROUP_RELATION,
     omitIfBlank: true,
+    section: "Portee",
   },
   {
     name: "contributor",
@@ -381,10 +582,30 @@ const commissionRuleFields: ResourceFormField[] = [
     type: "relation",
     relation: CONTRIBUTOR_RELATION,
     omitIfBlank: true,
+    section: "Portee",
   },
-  { name: "percentage_rate", label: "Taux", type: "number", defaultValue: "0.0000" },
-  { name: "fixed_amount", label: "Montant fixe", type: "money", defaultValue: "0.00" },
-  { name: "is_active", label: "Active", type: "checkbox", defaultValue: true },
+  {
+    name: "percentage_rate",
+    label: "Taux",
+    type: "number",
+    defaultValue: "0.0000",
+    inputMode: "decimal",
+    min: 0,
+    max: 100,
+    step: "0.0001",
+    section: "Calcul",
+  },
+  {
+    name: "fixed_amount",
+    label: "Montant fixe",
+    type: "money",
+    defaultValue: "0.00",
+    inputMode: "decimal",
+    min: 0,
+    step: "0.01",
+    section: "Calcul",
+  },
+  { name: "is_active", label: "Active", type: "checkbox", defaultValue: true, section: "Etat" },
 ];
 
 const baseDetailFields: ResourceColumn[] = [
@@ -600,7 +821,21 @@ export const resources: ResourceDefinition[] = [
       {
         label: "Confirmer",
         action: "confirm",
-        confirm: "Confirmer ce paiement ?",
+        guard: {
+          title: "Confirmation paiement",
+          description:
+            "Cette action confirme l'encaissement et peut alimenter le wallet du groupe. Verifiez le montant, la devise et la reference avant de continuer.",
+          confirmationValue: "CONFIRMER",
+          warningItems: [
+            "Ne confirmez pas un paiement externe sans preuve provider.",
+            "L'action est journalisee et modifie l'etat financier du dossier.",
+          ],
+        },
+        disabledWhen: {
+          field: "status",
+          notEquals: "PENDING",
+          reason: "Seuls les paiements en attente peuvent etre confirmes.",
+        },
       },
     ],
   },
@@ -634,6 +869,30 @@ export const resources: ResourceDefinition[] = [
       ...baseDetailFields,
     ],
     formFields: contractFields,
+    actions: [
+      {
+        label: "Emettre QR",
+        action: "issue",
+        guard: {
+          title: "Emission ASS/QR",
+          description:
+            "Cette action appelle ASS/Diotali et peut creer une attestation externe. Controlez la previsualisation du payload avant de confirmer.",
+          confirmationValue: "EMETTRE",
+          preflightAction: "ass-payload-preview",
+          previewLabel: "Previsualisation ASS/QR",
+          warningItems: [
+            "Ne lancez pas l'emission depuis un contrat de production non verifie.",
+            "Le paiement doit etre confirme et le contrat ne doit pas deja etre emis.",
+            "Aucune action de stock QR ASS n'est exposee dans Horus.",
+          ],
+        },
+        disabledWhen: {
+          field: "status",
+          equals: "ISSUED",
+          reason: "Le contrat est deja emis.",
+        },
+      },
+    ],
   },
   {
     slug: "client-access-tokens",
@@ -670,9 +929,46 @@ export const resources: ResourceDefinition[] = [
     ],
     formFields: clientAccessFields,
     actions: [
-      { label: "Revoquer", action: "revoke", confirm: "Revoquer ce jeton ?" },
-      { label: "Renouveler", action: "renew", confirm: "Renouveler ce jeton ?" },
-      { label: "Renvoyer", action: "resend-link" },
+      {
+        label: "Revoquer",
+        action: "revoke",
+        guard: {
+          title: "Revocation acces client",
+          description:
+            "Cette action coupe l'acces du client au portail pour ce jeton. Verifiez le client et le contrat avant de continuer.",
+          confirmationValue: "REVOQUER",
+        },
+        disabledWhen: {
+          field: "is_active",
+          equals: false,
+          reason: "Le jeton est deja inactif.",
+        },
+      },
+      {
+        label: "Renouveler",
+        action: "renew",
+        guard: {
+          title: "Renouvellement acces client",
+          description:
+            "Cette action cree un nouveau secret client et remplace l'acces courant. L'ancien lien ne doit plus etre communique.",
+          confirmationValue: "RENOUVELER",
+        },
+      },
+      {
+        label: "Renvoyer",
+        action: "resend-link",
+        guard: {
+          title: "Renvoi lien client",
+          description:
+            "Cette action renvoie le lien d'acces client par le canal configure. Verifiez la destination avant de continuer.",
+          confirmationValue: "RENVOYER",
+        },
+        disabledWhen: {
+          field: "is_active",
+          equals: false,
+          reason: "Le jeton est inactif.",
+        },
+      },
     ],
   },
   {
@@ -731,7 +1027,23 @@ export const resources: ResourceDefinition[] = [
       { key: "paid_at", label: "Paiement", kind: "date" },
       ...baseDetailFields,
     ],
-    actions: [{ label: "Marquer payee", action: "mark-paid" }],
+    actions: [
+      {
+        label: "Marquer payee",
+        action: "mark-paid",
+        guard: {
+          title: "Paiement commission",
+          description:
+            "Cette action marque la commission comme payee. Verifiez le montant, le net a verser et le statut comptable avant de continuer.",
+          confirmationValue: "PAYER",
+        },
+        disabledWhen: {
+          field: "status",
+          equals: "PAID",
+          reason: "La commission est deja marquee payee.",
+        },
+      },
+    ],
   },
   {
     slug: "wallets",
@@ -852,6 +1164,22 @@ export function canDelete(resource: ResourceDefinition) {
   return resource.canDelete !== false;
 }
 
+export function actionDisabledReason(record: ApiRecord, action: ResourceAction) {
+  const rule = action.disabledWhen;
+  if (!rule) {
+    return "";
+  }
+
+  const value = record[rule.field];
+  if ("equals" in rule && value === rule.equals) {
+    return rule.reason;
+  }
+  if ("notEquals" in rule && value !== rule.notEquals) {
+    return rule.reason;
+  }
+  return "";
+}
+
 export function initialPayload(resource: ResourceDefinition): ApiRecord {
   return Object.fromEntries(
     (resource.formFields ?? []).map((field) => [
@@ -884,6 +1212,12 @@ function defaultValueForField(field: ResourceFormField) {
   }
   if (field.type === "json") {
     return field.name.endsWith("options") ? [] : {};
+  }
+  if (field.type === "coverage-options") {
+    return [];
+  }
+  if (field.type === "ass-product-data") {
+    return {};
   }
   return "";
 }

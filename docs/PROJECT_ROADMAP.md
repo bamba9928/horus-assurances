@@ -5,9 +5,10 @@ jour a chaque phase importante, apres les changements de code et les tests.
 
 ## Etat actuel
 
-Backend Django REST Framework avance jusqu'a la phase 16 cote backend. Les
-socles locaux des phases 15 et 16 sont implementes et testes ; les validations
-externes et interfaces restent a finaliser.
+Backend Django REST Framework avance jusqu'a la phase 18 cote backend. Les
+referentiels ASS internes sont maintenant exposes par API ; les validations
+externes, la vraie flotte, la production ASS-like et les interfaces restent a
+finaliser.
 
 Stack cible :
 
@@ -44,7 +45,8 @@ Stack cible :
 - Phase 17 : terminee pour le MVP web interne faisable en dev : frontend
   Next.js, proxy JWT HttpOnly, dashboard, formulaires metier, vues detail et
   tests frontend.
-- Phase 18 : non demarree.
+- Phase 18 : referentiels ASS backend termines pour le socle initial.
+- Phase 19 : mobile Flutter non demarree.
 
 ## Phases 1 a 12 formalisees
 
@@ -91,6 +93,7 @@ livrees et couvertes par les tests backend.
   - `audit`
   - `notifications`
   - `common`
+  - `reference_data`
 - Clients, vehicules, devis, paiements, wallets, contrats, commissions.
 - Audit logs et notifications internes.
 - Dashboard API.
@@ -149,6 +152,34 @@ livrees et couvertes par les tests backend.
 - Champs documentaires Diotali :
   - `attestation_url`
   - `carte_brune_url`
+- Referentiels ASS backend exposes en lecture :
+  - `ProductReference`
+  - `VehicleBrand`
+  - `VehicleCategory`
+  - `VehicleSubCategory`
+  - `VehicleGenre`
+  - `EnergyType`
+  - `VehicleUsage`
+  - `GuaranteeReference`
+  - `DurationOption`
+  - `FormRule`
+- Endpoints internes read-only :
+  - `GET /api/v1/reference-data/products/`
+  - `GET /api/v1/reference-data/vehicle-brands/`
+  - `GET /api/v1/reference-data/vehicle-categories/`
+  - `GET /api/v1/reference-data/vehicle-subcategories/`
+  - `GET /api/v1/reference-data/vehicle-genres/`
+  - `GET /api/v1/reference-data/energies/`
+  - `GET /api/v1/reference-data/usages/`
+  - `GET /api/v1/reference-data/guarantees/`
+  - `GET /api/v1/reference-data/durations/`
+  - `GET /api/v1/reference-data/form-rules/`
+- Seed initial des produits, marques de base, energies, categories,
+  sous-categories, genres, garanties, durees, usages et regles formulaire.
+- RC et CEDEAO sont referencees comme garanties obligatoires, cochees par
+  defaut et en lecture seule.
+- Les genres `TPC_MOINS_3T500` et `TPC_PLUS_3T500` portent
+  `requires_trailer_section=True` pour guider les frontends sans hardcode.
 - Stock QR ASS :
   - non expose dans Horus par choix produit
   - gere directement dans le compte ASS natif
@@ -225,7 +256,7 @@ livrees et couvertes par les tests backend.
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `214 passed`
+- Suite complete backend : `227 passed`
 - Tests cibles ASS apres ajout Bus ecole et commande RC sandbox : `44 passed`
 - Tests cibles paiements phase 15 : `26 passed`
 - Tests cibles espace client phase 16 : `24 passed`
@@ -234,6 +265,14 @@ livrees et couvertes par les tests backend.
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
 - CI backend ajoutee dans `.github/workflows/ci.yml`
+- Frontend `npm run typecheck` : OK le 2026-05-27
+- Frontend `npm run test` : `5 passed`, `18 passed` le 2026-05-27
+- Frontend `npm run e2e` : Playwright `3 passed` le 2026-05-27,
+  avec backend mocke et Chrome systeme local
+- Referentiels ASS backend le 2026-05-28 :
+  - `python manage.py check` : OK
+  - `python -m pytest apps/reference_data/tests/test_reference_data_api.py` :
+    `12 passed`
 
 ## Prochaines validations externes
 
@@ -420,12 +459,14 @@ Fait :
 - Tests de securite : expiration, revocation, autre groupe, rotation, absence de
   stockage clair, refus document sans jeton valide, OTP expire/revoque/usage
   unique/mauvais usage/verrouillage.
+- Portail client web minimal ajoute en phase 17 avec session client en cookie
+  HttpOnly via proxy Next.js.
 
 Reste a faire :
 
 - Hors dev local : choisir et brancher un vrai provider SMS/email.
 - Hors dev local : valider les formats de messages client avec le provider.
-- Phase frontend/mobile : ajouter les ecrans de consultation client.
+- Mobile : ajouter les ecrans de consultation client.
 
 ### Phase 17 - Frontend Next.js
 
@@ -452,24 +493,89 @@ Fait :
   audit logs et notifications.
 - Formulaires metier avec champs dedies, selects relationnels et conversion
   des payloads avant envoi backend.
+- Formulaires metier ameliores avec sections lisibles, contraintes de saisie,
+  validations frontend prudentes et editeurs guides pour les garanties et
+  donnees produit ASS par produit.
 - Recherche, pagination, vues detail metier, creation, modification et
   suppression quand l'endpoint backend l'autorise.
 - Actions internes prudentes exposees pour paiements, notifications et jetons
-  client ; aucune action d'emission ASS/QR externe n'est declenchee depuis le
-  frontend MVP.
+  client.
+- Garde-fous frontend renforces pour les actions sensibles exposees :
+  confirmation par saisie explicite, raisons de desactivation par statut,
+  messages metier et blocage de l'execution si la previsualisation requise
+  echoue.
+- Action d'emission ASS/QR exposee sur les contrats avec previsualisation
+  obligatoire du payload `ass-payload-preview` avant appel `issue`.
+- Portail client web minimal sur `/client` et `/client-space/access`, avec
+  jeton client conserve cote Next.js en cookie HttpOnly et proxy interne
+  `/api/client-space`.
+- Consultation profil client, contrat lie au jeton, disponibilite documents,
+  demande OTP mockee et ouverture d'attestation/carte brune apres OTP valide.
 - Suite de tests frontend automatisee avec Vitest.
+- Suite E2E navigateur Playwright ajoutee avec fixtures mockees stables pour
+  couvrir la confirmation d'emission ASS/QR et le parcours portail client
+  OTP + ouverture document.
 - Override `postcss` applique pour corriger l'audit npm sans downgrade Next.js.
 
 Taches :
 
-- Ajouter des tests end-to-end navigateur quand un jeu de donnees seed stable
-  sera disponible.
-- Ajouter les actions sensibles restantes avec confirmations metier et
-  garde-fous explicites, notamment avant toute emission ASS/QR.
-- Brancher les ecrans client final si le portail web doit etre livre dans
-  Next.js avant le mobile.
+- Brancher les E2E navigateur sur un vrai seed backend stable quand il sera
+  disponible, en complement des fixtures mockees actuelles.
+- Etendre la couverture E2E aux workflows internes de creation/modification
+  metier lorsque le seed stable couvrira groupes, clients, vehicules, devis,
+  paiements et contrats.
 
-### Phase 18 - Mobile Flutter
+### Phase 18 - Referentiels ASS backend
+
+Objectif : centraliser les valeurs compatibles ASS dans le backend pour eviter
+les hardcodes Next.js et Flutter.
+
+Etat : termine pour le socle initial backend.
+
+Fait :
+
+- App Django `reference_data`.
+- Modeles :
+  - `ProductReference`
+  - `VehicleBrand`
+  - `VehicleCategory`
+  - `VehicleSubCategory`
+  - `VehicleGenre`
+  - `EnergyType`
+  - `VehicleUsage`
+  - `GuaranteeReference`
+  - `DurationOption`
+  - `FormRule`
+- Relations categorie -> sous-categorie -> genre.
+- Flag `requires_trailer_section` sur les genres vehicule.
+- Garanties RC et CEDEAO obligatoires, selectionnees par defaut et readonly.
+- Champs de tracabilite sur les referentiels :
+  - `source`
+  - `is_verified`
+  - `metadata`
+- Endpoints `GET /api/v1/reference-data/...` en lecture seule.
+- Filtres utiles par `code`, `category_code`, `subcategory_code`,
+  `product_code`, `genre_code`, `is_active`.
+- Seed initial via migration.
+- Admin Django pour gestion interne des valeurs.
+- Tests backend cibles.
+
+Reste a faire :
+
+- Enrichir le seed avec les valeurs observees dans la documentation ASS, la
+  collection Postman, le compte natif ASS et les validations sandbox reussies.
+- Ne pas considerer les valeurs seed comme exhaustives : elles portent
+  `metadata.is_exhaustive=False`.
+- Passer progressivement `is_verified=True` uniquement apres validation sandbox
+  reussie de la valeur concernee.
+- Completer ou corriger les `ass_code` / codes externes lorsqu'une valeur est
+  confirmee, sans bloquer le projet sur une liste officielle exhaustive.
+- Brancher progressivement `Vehicle`, `Quote`, Next.js et Flutter sur ces
+  endpoints sans casser les champs existants ni les payloads ASS.
+- Ajouter une validation backend des garanties obligatoires lors du prochain
+  chantier `Quote`.
+
+### Phase 19 - Mobile Flutter
 
 Objectif : application mobile apporteur/client.
 
@@ -489,6 +595,9 @@ Taches :
 - Les noms de cles Diotali doivent etre confirmes sur une reponse reelle.
 - Certains produits ASS demandent encore une modelisation metier definitive ;
   `ass_product_data` est une solution transitoire controlee.
+- Les nouveaux referentiels ASS exposent un seed initial non exhaustif ; les
+  valeurs doivent conserver leur `source` et leur statut `is_verified` pour
+  eviter de bloquer le projet sur une liste officielle qui peut ne pas exister.
 - Les payloads produits avances sont testes localement, mais pas encore valides
   contre une sandbox ASS reelle.
 - Le stock QR ASS n'est pas un risque fonctionnel Horus : il reste gere dans le
@@ -497,6 +606,9 @@ Taches :
   confirmes en sandbox provider.
 - Les liens et OTP client ne sont pas encore envoyes par vrai provider
   SMS/email.
+- Les E2E navigateur frontend utilisent actuellement des fixtures mockees ;
+  le seed backend stable reste a definir pour valider les parcours bout en bout
+  contre une base reelle.
 - Le frontend web Next.js MVP existe ; le mobile Flutter n'est pas encore cree.
 
 ## Regle de maintenance

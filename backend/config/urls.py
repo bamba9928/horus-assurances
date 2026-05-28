@@ -32,6 +32,18 @@ from apps.payments.views import (
     WaveWebhookView,
 )
 from apps.quotes.views import QuoteViewSet
+from apps.reference_data.views import (
+    DurationOptionViewSet,
+    EnergyTypeViewSet,
+    FormRuleViewSet,
+    GuaranteeReferenceViewSet,
+    ProductReferenceViewSet,
+    VehicleBrandViewSet,
+    VehicleCategoryViewSet,
+    VehicleGenreViewSet,
+    VehicleSubCategoryViewSet,
+    VehicleUsageViewSet,
+)
 from apps.vehicles.views import VehicleViewSet
 
 router = DefaultRouter()
@@ -41,6 +53,56 @@ router.register("contributors", ContributorViewSet, basename="contributor")
 router.register("clients", ClientViewSet, basename="client")
 router.register("client-access-tokens", ClientAccessTokenViewSet, basename="clientaccesstoken")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
+router.register(
+    "reference-data/products",
+    ProductReferenceViewSet,
+    basename="reference-product",
+)
+router.register(
+    "reference-data/vehicle-brands",
+    VehicleBrandViewSet,
+    basename="reference-vehicle-brand",
+)
+router.register(
+    "reference-data/vehicle-categories",
+    VehicleCategoryViewSet,
+    basename="reference-vehicle-category",
+)
+router.register(
+    "reference-data/vehicle-subcategories",
+    VehicleSubCategoryViewSet,
+    basename="reference-vehicle-subcategory",
+)
+router.register(
+    "reference-data/vehicle-genres",
+    VehicleGenreViewSet,
+    basename="reference-vehicle-genre",
+)
+router.register(
+    "reference-data/energies",
+    EnergyTypeViewSet,
+    basename="reference-energy",
+)
+router.register(
+    "reference-data/usages",
+    VehicleUsageViewSet,
+    basename="reference-usage",
+)
+router.register(
+    "reference-data/guarantees",
+    GuaranteeReferenceViewSet,
+    basename="reference-guarantee",
+)
+router.register(
+    "reference-data/durations",
+    DurationOptionViewSet,
+    basename="reference-duration",
+)
+router.register(
+    "reference-data/form-rules",
+    FormRuleViewSet,
+    basename="reference-form-rule",
+)
 router.register("quotes", QuoteViewSet, basename="quote")
 router.register("wallets", GroupWalletViewSet, basename="wallet")
 router.register(

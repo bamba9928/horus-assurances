@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  actionDisabledReason,
   canCreate,
   canDelete,
   canEdit,
@@ -30,6 +31,35 @@ describe("resources configuration", () => {
     expect(canCreate(resource!)).toBe(true);
     expect(canEdit(resource!)).toBe(false);
     expect(canDelete(resource!)).toBe(false);
+  });
+
+  it("protects sensitive actions with explicit guardrails", () => {
+    const contracts = getResource("contracts");
+    const payments = getResource("payments");
+    const clientAccess = getResource("client-access-tokens");
+
+    expect(contracts?.actions?.[0]).toMatchObject({
+      action: "issue",
+      guard: {
+        confirmationValue: "EMETTRE",
+        preflightAction: "ass-payload-preview",
+      },
+    });
+    expect(payments?.actions?.[0].guard?.confirmationValue).toBe("CONFIRMER");
+    expect(clientAccess?.actions?.map((action) => action.guard?.confirmationValue)).toEqual([
+      "REVOQUER",
+      "RENOUVELER",
+      "RENVOYER",
+    ]);
+  });
+
+  it("explains why unavailable row actions are disabled", () => {
+    const contracts = getResource("contracts");
+    const action = contracts?.actions?.[0];
+
+    expect(action).toBeDefined();
+    expect(actionDisabledReason({ status: "ISSUED" }, action!)).toBe("Le contrat est deja emis.");
+    expect(actionDisabledReason({ status: "READY_TO_ISSUE" }, action!)).toBe("");
   });
 
   it("builds form defaults from field definitions", () => {

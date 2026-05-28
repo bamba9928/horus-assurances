@@ -33,6 +33,8 @@ node_modules/
 out/
 dist/
 *.tsbuildinfo
+playwright-report/
+test-results/
 
 # IDE/editor
 .idea/

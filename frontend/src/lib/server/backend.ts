@@ -111,12 +111,17 @@ export async function backendResponse(response: Response) {
 
   const contentType = response.headers.get("content-type") ?? "application/json";
   const body = await response.text();
+  const headers = new Headers();
+  headers.set("Content-Type", contentType);
+
+  const location = response.headers.get("location");
+  if (location) {
+    headers.set("Location", location);
+  }
 
   return new NextResponse(body, {
     status: response.status,
-    headers: {
-      "Content-Type": contentType,
-    },
+    headers,
   });
 }
 
