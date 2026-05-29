@@ -9,6 +9,7 @@ class QuoteAdmin(admin.ModelAdmin):
         "reference",
         "status",
         "product_type",
+        "product_reference",
         "client",
         "vehicle",
         "partner_group",
@@ -16,7 +17,14 @@ class QuoteAdmin(admin.ModelAdmin):
         "total_amount",
         "created_at",
     ]
-    list_filter = ["status", "product_type", "periodicity", "partner_group"]
+    list_filter = [
+        "status",
+        "product_type",
+        "product_reference",
+        "duration_option",
+        "periodicity",
+        "partner_group",
+    ]
     search_fields = [
         "reference",
         "client__first_name",
@@ -24,4 +32,12 @@ class QuoteAdmin(admin.ModelAdmin):
         "client__company_name",
         "vehicle__registration_number",
     ]
-    autocomplete_fields = ["partner_group", "client", "vehicle", "contributor", "created_by"]
+    autocomplete_fields = [
+        "partner_group",
+        "client",
+        "vehicle",
+        "contributor",
+        "created_by",
+        "product_reference",
+        "duration_option",
+    ]

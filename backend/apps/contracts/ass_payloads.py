@@ -2,6 +2,16 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.contracts.trailers import required_trailer_reference_vehicle_value
+from apps.reference_data.services import (
+    quote_duration_value,
+    quote_periodicity_value,
+    quote_product_code,
+    vehicle_brand_value,
+    vehicle_energy_value,
+    vehicle_genre_value,
+)
+
 
 def build_ass_qrcode_payload(contract):
     quote = contract.quote
@@ -9,7 +19,7 @@ def build_ass_qrcode_payload(contract):
     vehicle = contract.vehicle
 
     payload = {
-        "duree": quote.duration,
+        "duree": quote_duration_value(quote),
         "assure": _client_payload(client),
         "police": contract.contract_number or f"HORUS-PENDING-{contract.id:06d}",
         "vehicule": _vehicle_payload(vehicle),
@@ -33,7 +43,7 @@ def build_ass_qrcode_payload(contract):
             "garantiesOptAS",
             "garanties_opt_as",
         ),
-        "periodicite": quote.periodicity,
+        "periodicite": quote_periodicity_value(quote),
         "souscripteur": _client_payload(client),
         "typePersonne": "MORALE" if client.client_type == "COMPANY" else "PHYSIQUE",
         "referenceTrxPartner": _payment_reference(contract),
@@ -43,7 +53,7 @@ def build_ass_qrcode_payload(contract):
 
 
 def build_ass_qrcode_payload_for_product(contract):
-    product_type = contract.quote.product_type
+    product_type = quote_product_code(contract.quote)
     if product_type == "FLEET":
         return build_ass_fleet_qrcode_payload(contract)
     if product_type == "TRAILER":
@@ -69,8 +79,8 @@ def build_ass_fleet_qrcode_payload(contract):
                 default=f"HORUS-FLEET-{contract.id:06d}",
             ),
             "dateEffet": _date_or_none(quote.effective_date),
-            "duree": quote.duration,
-            "periodicite": quote.periodicity,
+            "duree": quote_duration_value(quote),
+            "periodicite": quote_periodicity_value(quote),
             "typePersonne": _person_type(client),
             "police": contract.contract_number or f"HORUS-PENDING-{contract.id:06d}",
             "cout_police": _decimal_or_none(quote.fees_amount),
@@ -96,14 +106,9 @@ def build_ass_trailer_qrcode_payload(contract):
     vehicle = contract.vehicle
     base_payload.update(
         {
-            "referenceVehicule": _product_data_value(
-                quote,
-                "referenceVehicule",
-                "reference_vehicule",
-                default=vehicle.registration_number,
-            ),
+            "referenceVehicule": required_trailer_reference_vehicle_value(quote),
             "immatriculation": vehicle.registration_number,
-            "marque": vehicle.brand,
+            "marque": vehicle_brand_value(vehicle),
             "modele": vehicle.model,
         }
     )
@@ -123,7 +128,7 @@ def build_ass_garage_qrcode_payload(contract):
                 default=1,
             ),
             "immatriculation": vehicle.registration_number,
-            "genre": vehicle.genre,
+            "genre": vehicle_genre_value(vehicle),
             "valeurNeuve": _decimal_or_none(vehicle.new_value),
             "valeurActuelle": _decimal_or_none(vehicle.current_value),
             "garanties": quote.coverage_options or [],
@@ -165,8 +170,8 @@ def _flat_qrcode_payload(contract):
         "police": contract.contract_number or f"HORUS-PENDING-{contract.id:06d}",
         "cout_police": _decimal_or_none(quote.fees_amount),
         "remise_rc": 0,
-        "duree": quote.duration,
-        "periodicite": quote.periodicity,
+        "duree": quote_duration_value(quote),
+        "periodicite": quote_periodicity_value(quote),
         "referenceTrxPartner": _payment_reference(contract),
         "typePersonne": _person_type(client),
         "souscripteur": _client_payload(client),
@@ -190,11 +195,11 @@ def _person_type(client):
 def _vehicle_payload(vehicle):
     return _drop_none(
         {
-            "genre": vehicle.genre,
-            "marque": vehicle.brand,
+            "genre": vehicle_genre_value(vehicle),
+            "marque": vehicle_brand_value(vehicle),
             "modele": vehicle.model,
             "chassis": vehicle.chassis_number,
-            "energie": vehicle.energy,
+            "energie": vehicle_energy_value(vehicle),
             "nombrePlace": vehicle.seats,
             "valeurNeuve": _decimal_or_none(vehicle.new_value),
             "valeurActuelle": _decimal_or_none(vehicle.current_value),

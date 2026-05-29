@@ -9,9 +9,12 @@ from .serializers import (
     ContractSerializer,
 )
 from .services import (
+    DiotaliPublicVerificationBlocked,
     build_contract_ass_payload_preview,
+    build_contract_issue_readiness,
     create_contract_from_payment,
     issue_contract,
+    verify_contract_vehicle_on_diotali_public,
 )
 
 
@@ -49,6 +52,11 @@ class ContractViewSet(viewsets.ModelViewSet):
             "vehicle",
             "contributor",
             "created_by",
+            "quote__product_reference",
+            "quote__duration_option",
+            "vehicle__brand_reference",
+            "vehicle__genre_reference",
+            "vehicle__energy_reference",
         )
 
         if getattr(self, "swagger_fake_view", False):
@@ -66,7 +74,13 @@ class ContractViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def issue(self, request, pk=None):
         contract = self.get_object()
-        contract = issue_contract(contract=contract, actor=request.user)
+        try:
+            contract = issue_contract(contract=contract, actor=request.user)
+        except DiotaliPublicVerificationBlocked as exc:
+            return Response(
+                {"diotali_public": exc.verification},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(ContractSerializer(contract, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="ass-payload-preview")
@@ -82,6 +96,22 @@ class ContractViewSet(viewsets.ModelViewSet):
         contract = self.get_object()
         return Response(
             ContractDocumentsSerializer(contract, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["get"], url_path="issue-readiness")
+    def issue_readiness(self, request, pk=None):
+        contract = self.get_object()
+        return Response(
+            build_contract_issue_readiness(contract=contract),
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["get"], url_path="diotali-verification")
+    def diotali_verification(self, request, pk=None):
+        contract = self.get_object()
+        return Response(
+            verify_contract_vehicle_on_diotali_public(contract=contract),
             status=status.HTTP_200_OK,
         )
 

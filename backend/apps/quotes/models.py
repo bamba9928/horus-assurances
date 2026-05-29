@@ -63,12 +63,26 @@ class Quote(models.Model):
         choices=ProductType.choices,
         default=ProductType.AUTO,
     )
+    product_reference = models.ForeignKey(
+        "reference_data.ProductReference",
+        on_delete=models.PROTECT,
+        related_name="quotes",
+        null=True,
+        blank=True,
+    )
     periodicity = models.CharField(
         max_length=20,
         choices=Periodicity.choices,
         default=Periodicity.MONTHS,
     )
     duration = models.PositiveSmallIntegerField(default=12)
+    duration_option = models.ForeignKey(
+        "reference_data.DurationOption",
+        on_delete=models.PROTECT,
+        related_name="quotes",
+        null=True,
+        blank=True,
+    )
     effective_date = models.DateField(null=True, blank=True)
     expiration_date = models.DateField(null=True, blank=True)
     coverage_options = models.JSONField(default=list, blank=True)

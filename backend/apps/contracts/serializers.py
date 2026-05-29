@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.payments.models import Payment
 
+from .documents import build_contract_document_items, build_trailer_documents_summary
 from .models import Contract
 
 User = get_user_model()
@@ -192,6 +193,9 @@ class ContractSerializer(serializers.ModelSerializer):
 
 
 class ContractDocumentsSerializer(serializers.ModelSerializer):
+    documents = serializers.SerializerMethodField()
+    trailer_documents = serializers.SerializerMethodField()
+
     class Meta:
         model = Contract
         fields = [
@@ -202,9 +206,17 @@ class ContractDocumentsSerializer(serializers.ModelSerializer):
             "qr_code_reference",
             "attestation_url",
             "carte_brune_url",
+            "documents",
+            "trailer_documents",
             "issued_at",
         ]
         read_only_fields = fields
+
+    def get_documents(self, obj):
+        return build_contract_document_items(obj, include_urls=True)
+
+    def get_trailer_documents(self, obj):
+        return build_trailer_documents_summary(obj)
 
 
 class ContractFromPaymentSerializer(serializers.Serializer):

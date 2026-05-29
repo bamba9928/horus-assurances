@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from apps.reference_data.models import EnergyType, VehicleBrand, VehicleGenre
+
 from .models import Vehicle
 
 User = get_user_model()
@@ -10,6 +12,56 @@ class VehicleSerializer(serializers.ModelSerializer):
     partner_group_name = serializers.CharField(source="partner_group.name", read_only=True)
     client_display_name = serializers.CharField(source="client.display_name", read_only=True)
     contributor_username = serializers.CharField(source="contributor.username", read_only=True)
+    brand_reference = serializers.PrimaryKeyRelatedField(
+        queryset=VehicleBrand.objects.active(),
+        required=False,
+        allow_null=True,
+    )
+    brand_reference_code = serializers.CharField(
+        source="brand_reference.code",
+        read_only=True,
+        allow_null=True,
+    )
+    brand_reference_label = serializers.CharField(
+        source="brand_reference.label",
+        read_only=True,
+        allow_null=True,
+    )
+    genre_reference = serializers.PrimaryKeyRelatedField(
+        queryset=VehicleGenre.objects.active(),
+        required=False,
+        allow_null=True,
+    )
+    genre_reference_code = serializers.CharField(
+        source="genre_reference.code",
+        read_only=True,
+        allow_null=True,
+    )
+    genre_reference_label = serializers.CharField(
+        source="genre_reference.label",
+        read_only=True,
+        allow_null=True,
+    )
+    genre_requires_trailer_section = serializers.BooleanField(
+        source="genre_reference.requires_trailer_section",
+        read_only=True,
+        allow_null=True,
+    )
+    energy_reference = serializers.PrimaryKeyRelatedField(
+        queryset=EnergyType.objects.active(),
+        required=False,
+        allow_null=True,
+    )
+    energy_reference_code = serializers.CharField(
+        source="energy_reference.code",
+        read_only=True,
+        allow_null=True,
+    )
+    energy_reference_label = serializers.CharField(
+        source="energy_reference.label",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Vehicle
@@ -24,10 +76,20 @@ class VehicleSerializer(serializers.ModelSerializer):
             "created_by",
             "registration_number",
             "brand",
+            "brand_reference",
+            "brand_reference_code",
+            "brand_reference_label",
             "model",
             "chassis_number",
             "genre",
+            "genre_reference",
+            "genre_reference_code",
+            "genre_reference_label",
+            "genre_requires_trailer_section",
             "energy",
+            "energy_reference",
+            "energy_reference_code",
+            "energy_reference_label",
             "fiscal_power",
             "seats",
             "first_registration_date",
@@ -42,6 +104,9 @@ class VehicleSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "partner_group": {"required": False},
             "contributor": {"required": False, "allow_null": True},
+            "brand": {"required": False, "allow_blank": True},
+            "genre": {"required": False, "allow_blank": True},
+            "energy": {"required": False, "allow_blank": True},
         }
 
     def validate(self, attrs):
@@ -115,6 +180,9 @@ class VehicleSerializer(serializers.ModelSerializer):
                     {"contributor": "L'apporteur doit etre celui du client rattache."}
                 )
 
+        self._fill_legacy_reference_fields(attrs, instance)
+        self._validate_required_legacy_fields(attrs, instance)
+
         registration_number = attrs.get(
             "registration_number", getattr(instance, "registration_number", None)
         )
@@ -135,6 +203,46 @@ class VehicleSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+    def _fill_legacy_reference_fields(self, attrs, instance):
+        brand_reference = attrs.get(
+            "brand_reference", getattr(instance, "brand_reference", None)
+        )
+        genre_reference = attrs.get(
+            "genre_reference", getattr(instance, "genre_reference", None)
+        )
+        energy_reference = attrs.get(
+            "energy_reference", getattr(instance, "energy_reference", None)
+        )
+
+        if self._is_missing(attrs.get("brand", getattr(instance, "brand", None))):
+            if self._active(brand_reference):
+                attrs["brand"] = brand_reference.label
+
+        if self._is_missing(attrs.get("genre", getattr(instance, "genre", None))):
+            if self._active(genre_reference):
+                attrs["genre"] = genre_reference.ass_code or genre_reference.code
+
+        if self._is_missing(attrs.get("energy", getattr(instance, "energy", None))):
+            if self._active(energy_reference):
+                attrs["energy"] = energy_reference.ass_code or energy_reference.code
+
+    def _validate_required_legacy_fields(self, attrs, instance):
+        errors = {}
+        for field_name in ("brand", "genre", "energy"):
+            value = attrs.get(field_name, getattr(instance, field_name, None))
+            if self._is_missing(value):
+                errors[field_name] = "Ce champ est obligatoire si aucune reference active n'est fournie."
+        if errors:
+            raise serializers.ValidationError(errors)
+
+    @staticmethod
+    def _active(reference):
+        return reference is not None and reference.is_active
+
+    @staticmethod
+    def _is_missing(value):
+        return value is None or value == ""
 
     def create(self, validated_data):
         request = self.context.get("request")

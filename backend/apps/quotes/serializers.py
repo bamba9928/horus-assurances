@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from apps.reference_data.models import DurationOption, ProductReference
+
 from .models import Quote
 
 User = get_user_model()
@@ -15,6 +17,36 @@ class QuoteSerializer(serializers.ModelSerializer):
     )
     contributor_username = serializers.CharField(source="contributor.username", read_only=True)
     ass_product_data = serializers.DictField(required=False)
+    product_reference = serializers.PrimaryKeyRelatedField(
+        queryset=ProductReference.objects.active(),
+        required=False,
+        allow_null=True,
+    )
+    product_reference_code = serializers.CharField(
+        source="product_reference.code",
+        read_only=True,
+        allow_null=True,
+    )
+    product_reference_label = serializers.CharField(
+        source="product_reference.label",
+        read_only=True,
+        allow_null=True,
+    )
+    duration_option = serializers.PrimaryKeyRelatedField(
+        queryset=DurationOption.objects.active(),
+        required=False,
+        allow_null=True,
+    )
+    duration_option_code = serializers.CharField(
+        source="duration_option.code",
+        read_only=True,
+        allow_null=True,
+    )
+    duration_option_label = serializers.CharField(
+        source="duration_option.label",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Quote
@@ -32,8 +64,14 @@ class QuoteSerializer(serializers.ModelSerializer):
             "created_by",
             "status",
             "product_type",
+            "product_reference",
+            "product_reference_code",
+            "product_reference_label",
             "periodicity",
             "duration",
+            "duration_option",
+            "duration_option_code",
+            "duration_option_label",
             "effective_date",
             "expiration_date",
             "coverage_options",
@@ -134,7 +172,37 @@ class QuoteSerializer(serializers.ModelSerializer):
                     {"contributor": "L'apporteur doit etre celui du client et du vehicule."}
                 )
 
+        self._fill_legacy_reference_fields(attrs, instance)
+
         return attrs
+
+    def _fill_legacy_reference_fields(self, attrs, instance):
+        product_reference = attrs.get(
+            "product_reference", getattr(instance, "product_reference", None)
+        )
+        duration_option = attrs.get(
+            "duration_option", getattr(instance, "duration_option", None)
+        )
+        request_data = getattr(self, "initial_data", {}) or {}
+
+        if (
+            "product_type" not in request_data
+            and self._active(product_reference)
+            and product_reference.code in Quote.ProductType.values
+        ):
+            attrs["product_type"] = product_reference.code
+
+        if self._active(duration_option):
+            if "duration" not in request_data:
+                attrs["duration"] = duration_option.ass_duration or duration_option.duration
+            if "periodicity" not in request_data:
+                attrs["periodicity"] = (
+                    duration_option.ass_periodicity or duration_option.periodicity
+                )
+
+    @staticmethod
+    def _active(reference):
+        return reference is not None and reference.is_active
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -156,6 +224,16 @@ class QuoteSerializer(serializers.ModelSerializer):
 
 class QuoteCalculateSerializer(serializers.Serializer):
     use_ass = serializers.BooleanField(required=False, default=False)
+    product_reference = serializers.PrimaryKeyRelatedField(
+        queryset=ProductReference.objects.active(),
+        required=False,
+        allow_null=True,
+    )
+    duration_option = serializers.PrimaryKeyRelatedField(
+        queryset=DurationOption.objects.active(),
+        required=False,
+        allow_null=True,
+    )
     rc_discount_amount = serializers.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -202,11 +280,21 @@ class QuoteASSPayloadPreviewSerializer(serializers.Serializer):
         choices=Quote.ProductType.choices,
         required=False,
     )
+    product_reference = serializers.PrimaryKeyRelatedField(
+        queryset=ProductReference.objects.active(),
+        required=False,
+        allow_null=True,
+    )
     periodicity = serializers.ChoiceField(
         choices=Quote.Periodicity.choices,
         required=False,
     )
     duration = serializers.IntegerField(required=False, min_value=1, max_value=120)
+    duration_option = serializers.PrimaryKeyRelatedField(
+        queryset=DurationOption.objects.active(),
+        required=False,
+        allow_null=True,
+    )
     effective_date = serializers.DateField(required=False, allow_null=True)
     expiration_date = serializers.DateField(required=False, allow_null=True)
     coverage_options = serializers.JSONField(required=False)

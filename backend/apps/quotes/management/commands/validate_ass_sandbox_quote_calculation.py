@@ -9,6 +9,7 @@ from rest_framework import serializers
 from apps.ass_api.client import ASSAPIClient
 from apps.ass_api.models import ASSAPICallLog
 from apps.ass_api.sanitizers import sanitize_error_message, sanitize_value
+from apps.reference_data.services import quote_product_code
 
 from ...models import Quote
 from ...services import (
@@ -69,10 +70,8 @@ class Command(BaseCommand):
             allow_non_sandbox_base_url=options["allow_non_sandbox_base_url"],
         )
 
-        method_name = ASS_RC_METHOD_BY_PRODUCT_TYPE.get(
-            quote.product_type,
-            "calculate_rc",
-        )
+        product_code = quote_product_code(quote)
+        method_name = ASS_RC_METHOD_BY_PRODUCT_TYPE.get(product_code, "calculate_rc")
         try:
             response_payload = getattr(ASSAPIClient(), method_name)(
                 preview["payload"],
@@ -106,6 +105,11 @@ class Command(BaseCommand):
                 "client",
                 "vehicle",
                 "contributor",
+                "product_reference",
+                "duration_option",
+                "vehicle__brand_reference",
+                "vehicle__genre_reference",
+                "vehicle__energy_reference",
             ).get(pk=quote_id)
         except Quote.DoesNotExist as exc:
             raise CommandError(f"Devis introuvable: {quote_id}") from exc
@@ -134,9 +138,9 @@ class Command(BaseCommand):
             )
 
     def _write_last_ass_error(self, quote):
+        product_code = quote_product_code(quote)
         endpoint = ASS_RC_ENDPOINT_BY_PRODUCT_TYPE.get(
-            quote.product_type,
-            "/api/v1/partner/rc.request",
+            product_code, "/api/v1/partner/rc.request"
         )
         log = (
             ASSAPICallLog.objects.filter(

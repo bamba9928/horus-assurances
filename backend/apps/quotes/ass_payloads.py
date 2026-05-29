@@ -2,26 +2,36 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.contracts.trailers import required_trailer_reference_vehicle_value
+from apps.reference_data.services import (
+    quote_duration_value,
+    quote_periodicity_value,
+    quote_product_code,
+    vehicle_energy_value,
+    vehicle_genre_value,
+)
+
 
 def build_ass_rc_payload_for_product(quote, *, rc_discount_amount=Decimal("0.00")):
-    if quote.product_type == "FLEET":
+    product_code = quote_product_code(quote)
+    if product_code == "FLEET":
         return build_ass_fleet_rc_payload(
             quote,
             rc_discount_amount=rc_discount_amount,
         )
-    if quote.product_type == "TRAILER":
+    if product_code == "TRAILER":
         return build_ass_trailer_rc_payload(quote)
-    if quote.product_type == "SCHOOL_BUS":
+    if product_code == "SCHOOL_BUS":
         return build_ass_school_bus_rc_payload(
             quote,
             rc_discount_amount=rc_discount_amount,
         )
-    if quote.product_type == "GARAGE":
+    if product_code == "GARAGE":
         return build_ass_garage_rc_payload(
             quote,
             rc_discount_amount=rc_discount_amount,
         )
-    if quote.product_type == "MOTO":
+    if product_code == "MOTO":
         return build_ass_moto_rc_payload(
             quote,
             rc_discount_amount=rc_discount_amount,
@@ -34,11 +44,11 @@ def build_ass_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
     return _drop_none(
         {
             "puissanceFiscale": vehicle.fiscal_power,
-            "duree": quote.duration,
-            "genre": vehicle.genre,
+            "duree": quote_duration_value(quote),
+            "genre": vehicle_genre_value(vehicle),
             "nombrePlace": vehicle.seats,
-            "periodicite": quote.periodicity,
-            "energie": vehicle.energy,
+            "periodicite": quote_periodicity_value(quote),
+            "energie": vehicle_energy_value(vehicle),
             "valeurNeuve": _decimal_or_zero(vehicle.new_value),
             "valeurActuelle": _decimal_or_zero(vehicle.current_value),
             "garanties": quote.coverage_options or [],
@@ -73,10 +83,10 @@ def build_ass_moto_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
                 "cylinder",
                 label="cylindre",
             ),
-            "duree": quote.duration,
-            "periodicite": quote.periodicity,
-            "genre": vehicle.genre,
-            "energie": vehicle.energy,
+            "duree": quote_duration_value(quote),
+            "periodicite": quote_periodicity_value(quote),
+            "genre": vehicle_genre_value(vehicle),
+            "energie": vehicle_energy_value(vehicle),
             "usage": _required_product_data(quote, "usage", label="usage"),
             "nombrePlace": vehicle.seats,
             "cout_police": _decimal_or_zero(quote.fees_amount),
@@ -89,14 +99,9 @@ def build_ass_moto_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
 def build_ass_trailer_rc_payload(quote):
     return _drop_none(
         {
-            "duree": quote.duration,
-            "periodicite": quote.periodicity,
-            "referenceVehicule": _required_product_data(
-                quote,
-                "referenceVehicule",
-                "reference_vehicule",
-                label="referenceVehicule",
-            ),
+            "duree": quote_duration_value(quote),
+            "periodicite": quote_periodicity_value(quote),
+            "referenceVehicule": required_trailer_reference_vehicle_value(quote),
         }
     )
 
@@ -105,9 +110,9 @@ def build_ass_garage_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
     vehicle = quote.vehicle
     return _drop_none(
         {
-            "duree": quote.duration,
-            "periodicite": quote.periodicity,
-            "genre": vehicle.genre,
+            "duree": quote_duration_value(quote),
+            "periodicite": quote_periodicity_value(quote),
+            "genre": vehicle_genre_value(vehicle),
             "nombreCarte": _product_data_value(
                 quote,
                 "nombreCarte",
@@ -127,10 +132,10 @@ def build_ass_school_bus_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")
     vehicle = quote.vehicle
     return _drop_none(
         {
-            "duree": quote.duration,
-            "energie": vehicle.energy,
-            "periodicite": quote.periodicity,
-            "genre": vehicle.genre,
+            "duree": quote_duration_value(quote),
+            "energie": vehicle_energy_value(vehicle),
+            "periodicite": quote_periodicity_value(quote),
+            "genre": vehicle_genre_value(vehicle),
             "nombrePlace": vehicle.seats,
             "puissanceFiscale": vehicle.fiscal_power,
             "cout_police": _decimal_or_zero(quote.fees_amount),
@@ -159,8 +164,8 @@ def build_ass_fleet_rc_payload(quote, *, rc_discount_amount=Decimal("0.00")):
                 "reference_flotte",
                 default=f"HORUS-FLEET-{quote.id:06d}",
             ),
-            "periodicite": quote.periodicity,
-            "duree": quote.duration,
+            "periodicite": quote_periodicity_value(quote),
+            "duree": quote_duration_value(quote),
             "dateEffet": _date_or_none(quote.effective_date),
             "cout_police": _decimal_or_zero(quote.fees_amount),
             "remise_rc": _decimal_or_zero(rc_discount_amount),
@@ -174,8 +179,8 @@ def _fleet_rc_item(quote):
     return _drop_none(
         {
             "puissanceFiscale": vehicle.fiscal_power,
-            "genre": vehicle.genre,
-            "energie": vehicle.energy,
+            "genre": vehicle_genre_value(vehicle),
+            "energie": vehicle_energy_value(vehicle),
             "requestId": f"HORUS-FLEET-{quote.id:06d}-1",
             "valeurNeuve": _decimal_or_zero(vehicle.new_value),
             "valeurActuelle": _decimal_or_zero(vehicle.current_value),

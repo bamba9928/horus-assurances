@@ -2,13 +2,19 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.reference_data.services import apply_quote_reference_defaults
+
 from .models import Quote
 from .serializers import (
     QuoteASSPayloadPreviewSerializer,
     QuoteCalculateSerializer,
     QuoteSerializer,
 )
-from .services import build_quote_ass_payload_preview, calculate_quote_with_ass
+from .services import (
+    build_quote_ass_payload_preview,
+    build_quote_summary,
+    calculate_quote_with_ass,
+)
 
 
 class QuoteViewSet(viewsets.ModelViewSet):
@@ -21,6 +27,8 @@ class QuoteViewSet(viewsets.ModelViewSet):
         "contributor",
         "status",
         "product_type",
+        "product_reference",
+        "duration_option",
     ]
     search_fields = [
         "client__first_name",
@@ -39,6 +47,11 @@ class QuoteViewSet(viewsets.ModelViewSet):
             "vehicle",
             "contributor",
             "created_by",
+            "product_reference",
+            "duration_option",
+            "vehicle__brand_reference",
+            "vehicle__genre_reference",
+            "vehicle__energy_reference",
         )
 
         if getattr(self, "swagger_fake_view", False):
@@ -75,6 +88,10 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
         for field, value in calculation_values.items():
             setattr(quote, field, value)
+        apply_quote_reference_defaults(
+            quote,
+            explicit_fields=set(calculation_values.keys()),
+        )
 
         quote.status = Quote.Status.CALCULATED
         quote.refresh_total_amount()
@@ -93,6 +110,10 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
         for field, value in preview_values.items():
             setattr(quote, field, value)
+        apply_quote_reference_defaults(
+            quote,
+            explicit_fields=set(preview_values.keys()),
+        )
 
         return Response(
             build_quote_ass_payload_preview(
@@ -101,3 +122,8 @@ class QuoteViewSet(viewsets.ModelViewSet):
             ),
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["get"], url_path="summary")
+    def summary(self, request, pk=None):
+        quote = self.get_object()
+        return Response(build_quote_summary(quote=quote), status=status.HTTP_200_OK)

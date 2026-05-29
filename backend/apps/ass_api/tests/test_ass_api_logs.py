@@ -5,6 +5,7 @@ import pytest
 from django.test import override_settings
 from rest_framework import serializers
 
+from apps.ass_api.applicationtiers import ApplicationTiersPublicClient
 from apps.ass_api.client import ASSAPIClient
 from apps.ass_api.models import ASSAPICallLog
 from apps.ass_api.sanitizers import REDACTED, sanitize_value
@@ -95,6 +96,94 @@ def test_ass_client_partner_methods_use_documented_endpoints(
             "contract": None,
         }
     ]
+
+
+def test_applicationtiers_public_client_normalizes_registration_number():
+    assert ApplicationTiersPublicClient.normalize_immat(" dk-1234 aa ") == "DK1234AA"
+    assert ApplicationTiersPublicClient.normalize_immat("DK 12\u201334") == "DK1234"
+    assert ApplicationTiersPublicClient.normalize_immat("") == ""
+
+
+def test_applicationtiers_public_client_exposes_verify_endpoint():
+    client = ApplicationTiersPublicClient(base_url="https://public.example.test")
+
+    endpoints = client.get_public_endpoints()
+
+    assert endpoints == [
+        {
+            "name": "verify_vehicle_insurance",
+            "method": "GET",
+            "path": "/applicationtiers/verify/{immatriculation}",
+            "summary": (
+                "Verifie si une immatriculation a une attestation d'assurance valide."
+            ),
+            "auth": (
+                "Aucune auth requise sur l'endpoint final ; la racine "
+                "/applicationtiers est protegee en Basic Auth."
+            ),
+            "content_type": "application/json",
+            "publicly_accessible": True,
+        }
+    ]
+
+
+def test_applicationtiers_public_client_verifies_vehicle_success():
+    def handler(request):
+        assert request.method == "GET"
+        assert str(request.url) == "https://public.example.test/verify/DK1234AA"
+        assert request.headers["accept"] == "application/json"
+        return httpx.Response(
+            200,
+            json={
+                "operationStatus": "SUCCESS",
+                "data": {"attestation": "SN001"},
+            },
+        )
+
+    client = ApplicationTiersPublicClient(
+        base_url="https://public.example.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = client.verify_vehicle("DK-1234-AA")
+
+    assert result["operationStatus"] == "SUCCESS"
+    assert result["httpStatus"] == 200
+    assert result["queriedImmatriculation"] == "DK1234AA"
+    assert result["data"]["attestation"] == "SN001"
+
+
+def test_applicationtiers_public_client_returns_not_found_payload():
+    def handler(request):
+        return httpx.Response(404, json={"message": "not found"})
+
+    client = ApplicationTiersPublicClient(
+        base_url="https://public.example.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = client.verify_vehicle("DK 0000 AA")
+
+    assert result == {
+        "operationStatus": "NOT_FOUND",
+        "operationMessage": "Aucune attestation trouvee pour cette immatriculation.",
+        "data": {},
+        "httpStatus": 404,
+        "queriedImmatriculation": "DK0000AA",
+    }
+
+
+def test_applicationtiers_public_client_rejects_invalid_json():
+    def handler(request):
+        return httpx.Response(200, content=b"not json")
+
+    client = ApplicationTiersPublicClient(
+        base_url="https://public.example.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(ValueError, match="Reponse invalide"):
+        client.verify_vehicle("DK-1234-AA")
 
 
 @pytest.mark.django_db

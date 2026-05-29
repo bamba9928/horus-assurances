@@ -149,6 +149,16 @@ ASS_BASE_URL = config("ASS_BASE_URL", default="")
 ASS_USERNAME = config("ASS_USERNAME", default="")
 ASS_PASSWORD = config("ASS_PASSWORD", default="")
 ASS_TIMEOUT_SECONDS = config("ASS_TIMEOUT_SECONDS", default=30, cast=int)
+AAS_PUBLIC_BASE_URL = config(
+    "AAS_PUBLIC_BASE_URL",
+    default="https://apiaas.diotali.com/applicationtiers",
+)
+AAS_PUBLIC_TIMEOUT_SECONDS = config("AAS_PUBLIC_TIMEOUT_SECONDS", default=15, cast=int)
+AAS_PUBLIC_VERIFY_BEFORE_ISSUE = config(
+    "AAS_PUBLIC_VERIFY_BEFORE_ISSUE",
+    default=True,
+    cast=bool,
+)
 
 WAVE_WEBHOOK_SECRET = config("WAVE_WEBHOOK_SECRET", default="")
 ORANGE_MONEY_WEBHOOK_SECRET = config("ORANGE_MONEY_WEBHOOK_SECRET", default="")

@@ -84,9 +84,14 @@ class Command(BaseCommand):
             return Contract.objects.select_related(
                 "partner_group",
                 "quote",
+                "quote__product_reference",
+                "quote__duration_option",
                 "payment",
                 "client",
                 "vehicle",
+                "vehicle__brand_reference",
+                "vehicle__genre_reference",
+                "vehicle__energy_reference",
                 "contributor",
             ).get(pk=contract_id)
         except Contract.DoesNotExist as exc:

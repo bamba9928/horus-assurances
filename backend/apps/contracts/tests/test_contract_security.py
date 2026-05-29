@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -418,6 +419,115 @@ def test_ass_payload_preview_returns_qrcode_payload_without_issuing(contract_con
 
 
 @pytest.mark.django_db
+def test_issue_readiness_returns_local_diotali_checks_without_issuing(contract_context):
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/issue-readiness/",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["ready"] is True
+    assert response.data["operation"] == "diotali_issue_readiness"
+    assert response.data["ass_endpoint"] == "/api/v1/partner/qrcode.request"
+    assert response.data["payload"]["referenceTrxPartner"].startswith("HORUS-PAYMENT-")
+    assert {check["code"] for check in response.data["checks"]} == {
+        "contract_status",
+        "payment_confirmed",
+        "payment_amount_matches_quote",
+        "contract_relations",
+        "supported_product",
+        "payload_build",
+        "payload_reference",
+        "payload_policy",
+    }
+    contract_context["contract_a"].refresh_from_db()
+    assert contract_context["contract_a"].status == Contract.Status.READY_TO_ISSUE
+    assert contract_context["contract_a"].contract_number is None
+
+
+@pytest.mark.django_db
+def test_issue_readiness_reports_invalid_product_payload(contract_context):
+    Quote.objects.filter(pk=contract_context["quote_a"].pk).update(
+        product_type=Quote.ProductType.MOTO,
+        ass_product_data={},
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/issue-readiness/",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["ready"] is False
+    checks = {check["code"]: check for check in response.data["checks"]}
+    assert checks["payload_build"]["passed"] is False
+    assert "ass_product_data" in checks["payload_build"]["detail"]
+    assert response.data["payload"] is None
+
+
+@pytest.mark.django_db
+def test_issue_readiness_blocks_trailer_without_reference_vehicle(contract_context):
+    Quote.objects.filter(pk=contract_context["quote_a"].pk).update(
+        product_type=Quote.ProductType.TRAILER,
+        ass_product_data={},
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/issue-readiness/",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["ready"] is False
+    checks = {check["code"]: check for check in response.data["checks"]}
+    assert checks["trailer_reference_vehicle"]["passed"] is False
+    assert checks["payload_build"]["passed"] is False
+    assert [document["code"] for document in response.data["expected_documents"]] == [
+        "TRACTOR_ATTESTATION",
+        "TRACTOR_CARTE_BRUNE",
+        "TRAILER_ATTESTATION",
+        "TRAILER_CARTE_BRUNE",
+    ]
+    assert response.data["trailer_documents"]["requires_four_documents"] is True
+
+
+@pytest.mark.django_db
+def test_issue_contract_blocks_failed_readiness_before_ass_call(
+    contract_context,
+    monkeypatch,
+):
+    class FailingASSContractIssuer:
+        def __init__(self):
+            raise AssertionError("ASS should not be prepared when readiness fails")
+
+    monkeypatch.setattr(
+        "apps.contracts.services.ASSContractIssuer",
+        FailingASSContractIssuer,
+    )
+    Payment.objects.filter(pk=contract_context["confirmed_payment_a"].pk).update(
+        amount=Decimal("1000.00"),
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.post(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/issue/",
+        {},
+        format="json",
+    )
+
+    contract_context["contract_a"].refresh_from_db()
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "issue_readiness" in response.data
+    assert contract_context["contract_a"].status == Contract.Status.READY_TO_ISSUE
+    assert contract_context["contract_a"].contract_number is None
+
+
+@pytest.mark.django_db
 def test_contributor_cannot_preview_contract_from_another_contributor(contract_context):
     client = APIClient()
     client.force_authenticate(contract_context["contributor_a"])
@@ -426,6 +536,187 @@ def test_contributor_cannot_preview_contract_from_another_contributor(contract_c
         f"/api/v1/contracts/{contract_context['contract_b'].id}/ass-payload-preview/",
         {},
         format="json",
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_contributor_cannot_read_issue_readiness_from_another_contributor(
+    contract_context,
+):
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_b'].id}/issue-readiness/",
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_diotali_verification_checks_vehicle_registration(contract_context, monkeypatch):
+    class FakeApplicationTiersPublicClient:
+        def normalize_immat(self, value):
+            return value.replace("-", "").upper()
+
+        def get_public_endpoints(self):
+            return [{"name": "verify_vehicle_insurance"}]
+
+        def verify_vehicle(self, immatriculation):
+            assert immatriculation == "DK-C01-AA"
+            return {
+                "operationStatus": "SUCCESS",
+                "operationMessage": (
+                    "L'attestation d'assurance N SN009A4CPJQ du vehicule de marque "
+                    "PEUGEOT 607 immatricule DKC01AA est valide."
+                ),
+                "data": {
+                    "attestationNumber": "SN009A4CPJQ",
+                    "dateVerification": "28-05-2026 18:39",
+                    "immatriculation": "DKC01AA",
+                    "dateEffet": "2026-05-27",
+                    "dateEcheance": "2026-06-26 23:59:59",
+                    "marque": "PEUGEOT",
+                    "modele": "607",
+                },
+            }
+
+    monkeypatch.setattr(
+        "apps.contracts.services.ApplicationTiersPublicClient",
+        FakeApplicationTiersPublicClient,
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/diotali-verification/",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == {
+        "operation": "diotali_public_vehicle_verification",
+        "registration_number": "DK-C01-AA",
+        "normalized_registration_number": "DKC01AA",
+        "public_endpoints": [{"name": "verify_vehicle_insurance"}],
+        "verification": {
+            "is_valid": True,
+            "status": "SUCCESS",
+            "blocks_issue": True,
+            "overlaps_requested_effective_date": True,
+            "message": (
+                "L'attestation d'assurance N SN009A4CPJQ du vehicule de marque "
+                "PEUGEOT 607 immatricule DKC01AA est valide."
+            ),
+            "attestation_number": "SN009A4CPJQ",
+            "registration_number": "DKC01AA",
+            "effective_date": "2026-05-27",
+            "expiration_date": "2026-06-26 23:59:59",
+            "verification_date": "28-05-2026 18:39",
+            "brand": "PEUGEOT",
+            "model": "607",
+            "current_quote_effective_date": "",
+            "suggested_effective_date": "2026-06-27",
+            "correction_message": (
+                "Une attestation Diotali est deja valide pour cette immatriculation. "
+                "Attestation existante : SN009A4CPJQ. Immatriculation : DKC01AA. "
+                "Echeance actuelle : 2026-06-26 23:59:59. L'utilisateur doit "
+                "corriger la date d'effet du devis a partir du 2026-06-27, ou "
+                "abandonner l'emission."
+            ),
+        },
+        "result": {
+            "operationStatus": "SUCCESS",
+            "operationMessage": (
+                "L'attestation d'assurance N SN009A4CPJQ du vehicule de marque "
+                "PEUGEOT 607 immatricule DKC01AA est valide."
+            ),
+            "data": {
+                "attestationNumber": "SN009A4CPJQ",
+                "dateVerification": "28-05-2026 18:39",
+                "immatriculation": "DKC01AA",
+                "dateEffet": "2026-05-27",
+                "dateEcheance": "2026-06-26 23:59:59",
+                "marque": "PEUGEOT",
+                "modele": "607",
+            },
+        },
+    }
+    contract_context["contract_a"].refresh_from_db()
+    assert contract_context["contract_a"].status == Contract.Status.READY_TO_ISSUE
+    assert contract_context["contract_a"].contract_number is None
+
+
+@pytest.mark.django_db
+@override_settings(AAS_PUBLIC_VERIFY_BEFORE_ISSUE=True)
+def test_issue_contract_blocks_when_diotali_public_finds_active_attestation(
+    contract_context,
+    monkeypatch,
+):
+    class FakeApplicationTiersPublicClient:
+        def normalize_immat(self, value):
+            return value.replace("-", "").upper()
+
+        def get_public_endpoints(self):
+            return [{"name": "verify_vehicle_insurance"}]
+
+        def verify_vehicle(self, immatriculation):
+            return {
+                "operationStatus": "SUCCESS",
+                "operationMessage": "Attestation deja valide.",
+                "data": {
+                    "attestationNumber": "SN009A4CPJQ",
+                    "immatriculation": "DKC01AA",
+                    "dateEffet": "2026-05-27",
+                    "dateEcheance": "2026-06-26 23:59:59",
+                    "marque": "PEUGEOT",
+                    "modele": "607",
+                },
+            }
+
+    class FailingASSContractIssuer:
+        def __init__(self):
+            raise AssertionError("ASS issue client should not be instantiated")
+
+    monkeypatch.setattr(
+        "apps.contracts.services.ApplicationTiersPublicClient",
+        FakeApplicationTiersPublicClient,
+    )
+    monkeypatch.setattr(
+        "apps.contracts.services.ASSContractIssuer",
+        FailingASSContractIssuer,
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.post(
+        f"/api/v1/contracts/{contract_context['contract_a'].id}/issue/",
+        {},
+        format="json",
+    )
+
+    contract_context["contract_a"].refresh_from_db()
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["diotali_public"]["blocks_issue"] is True
+    assert response.data["diotali_public"]["attestation_number"] == "SN009A4CPJQ"
+    assert response.data["diotali_public"]["suggested_effective_date"] == "2026-06-27"
+    assert "corriger la date d'effet" in str(
+        response.data["diotali_public"]["correction_message"]
+    )
+    assert contract_context["contract_a"].status == Contract.Status.READY_TO_ISSUE
+    assert contract_context["contract_a"].contract_number is None
+
+
+@pytest.mark.django_db
+def test_contributor_cannot_run_diotali_verification_from_another_contributor(
+    contract_context,
+):
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(
+        f"/api/v1/contracts/{contract_context['contract_b'].id}/diotali-verification/",
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -448,15 +739,113 @@ def test_contract_documents_returns_diotali_links_for_own_contract(contract_cont
     )
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data == {
-        "id": contract_context["contract_a"].id,
-        "status": Contract.Status.ISSUED,
-        "contract_number": "ASS-CONTRACT-DOC-001",
-        "attestation_reference": "SN00DOC001",
-        "qr_code_reference": None,
-        "attestation_url": "https://diotali.example.test/attestation/SN00DOC001",
-        "carte_brune_url": "https://diotali.example.test/carte-brune/SN00DOC001",
-        "issued_at": None,
+    assert response.data["id"] == contract_context["contract_a"].id
+    assert response.data["status"] == Contract.Status.ISSUED
+    assert response.data["contract_number"] == "ASS-CONTRACT-DOC-001"
+    assert response.data["attestation_reference"] == "SN00DOC001"
+    assert response.data["qr_code_reference"] is None
+    assert (
+        response.data["attestation_url"]
+        == "https://diotali.example.test/attestation/SN00DOC001"
+    )
+    assert (
+        response.data["carte_brune_url"]
+        == "https://diotali.example.test/carte-brune/SN00DOC001"
+    )
+    assert response.data["trailer_documents"]["applies"] is False
+    assert [document["code"] for document in response.data["documents"]] == [
+        "ATTESTATION",
+        "CARTE_BRUNE",
+    ]
+    assert {document["available"] for document in response.data["documents"]} == {True}
+
+
+@pytest.mark.django_db
+def test_trailer_contract_documents_return_four_documents_with_reference_contract(
+    contract_context,
+):
+    Contract.objects.filter(pk=contract_context["contract_a"].pk).update(
+        status=Contract.Status.ISSUED,
+        contract_number="ASS-AUTO-TRACTOR-001",
+        attestation_reference="SNTRACT001",
+        attestation_url="https://diotali.example.test/attestation/SNTRACT001",
+        carte_brune_url="https://diotali.example.test/carte-brune/SNTRACT001",
+    )
+    trailer_vehicle = Vehicle.objects.create(
+        partner_group=contract_context["group_a"],
+        client=contract_context["client_a"],
+        contributor=contract_context["contributor_a"],
+        created_by=contract_context["contributor_a"],
+        registration_number="DK-TRAILER-01",
+        brand="Remorque",
+        model="Plateau",
+        genre="REMORQUE",
+        energy=Vehicle.Energy.GASOLINE,
+    )
+    trailer_quote = Quote.objects.create(
+        partner_group=contract_context["group_a"],
+        client=contract_context["client_a"],
+        vehicle=trailer_vehicle,
+        contributor=contract_context["contributor_a"],
+        created_by=contract_context["contributor_a"],
+        product_type=Quote.ProductType.TRAILER,
+        ass_product_data={"referenceVehicule": "ASS-AUTO-TRACTOR-001"},
+        premium_amount=Decimal("5000.00"),
+        fees_amount=Decimal("1000.00"),
+        total_amount=Decimal("6000.00"),
+    )
+    trailer_payment = Payment.objects.create(
+        partner_group=contract_context["group_a"],
+        quote=trailer_quote,
+        client=contract_context["client_a"],
+        contributor=contract_context["contributor_a"],
+        created_by=contract_context["contributor_a"],
+        method=Payment.Method.WAVE,
+        status=Payment.Status.CONFIRMED,
+        amount=trailer_quote.total_amount,
+    )
+    trailer_contract = Contract.objects.create(
+        partner_group=contract_context["group_a"],
+        quote=trailer_quote,
+        payment=trailer_payment,
+        client=contract_context["client_a"],
+        vehicle=trailer_vehicle,
+        contributor=contract_context["contributor_a"],
+        created_by=contract_context["contributor_a"],
+        status=Contract.Status.ISSUED,
+        contract_number="ASS-TRAILER-001",
+        attestation_reference="SNTRAIL001",
+        attestation_url="https://diotali.example.test/attestation/SNTRAIL001",
+        carte_brune_url="https://diotali.example.test/carte-brune/SNTRAIL001",
+    )
+    client = APIClient()
+    client.force_authenticate(contract_context["contributor_a"])
+
+    response = client.get(f"/api/v1/contracts/{trailer_contract.id}/documents/")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert [document["code"] for document in response.data["documents"]] == [
+        "TRACTOR_ATTESTATION",
+        "TRACTOR_CARTE_BRUNE",
+        "TRAILER_ATTESTATION",
+        "TRAILER_CARTE_BRUNE",
+    ]
+    assert {document["available"] for document in response.data["documents"]} == {True}
+    assert response.data["documents"][0]["contract_number"] == "ASS-AUTO-TRACTOR-001"
+    assert response.data["documents"][2]["contract_number"] == "ASS-TRAILER-001"
+    assert response.data["trailer_documents"] == {
+        "applies": True,
+        "requires_four_documents": True,
+        "reference_vehicle": "ASS-AUTO-TRACTOR-001",
+        "reference_vehicle_contract_id": None,
+        "reference_vehicle_contract": {
+            "id": contract_context["contract_a"].id,
+            "status": Contract.Status.ISSUED,
+            "contract_number": "ASS-AUTO-TRACTOR-001",
+            "attestation_reference": "SNTRACT001",
+            "vehicle_registration_number": "DK-C01-AA",
+        },
+        "complete": True,
     }
 
 

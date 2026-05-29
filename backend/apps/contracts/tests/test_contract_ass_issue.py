@@ -293,6 +293,22 @@ def test_build_ass_qrcode_payload_for_trailer_uses_product_reference(
 
 
 @pytest.mark.django_db
+def test_build_ass_qrcode_payload_for_trailer_requires_reference_vehicle(
+    ass_contract_context,
+):
+    Quote.objects.filter(pk=ass_contract_context["quote"].pk).update(
+        product_type=Quote.ProductType.TRAILER,
+        ass_product_data={},
+    )
+    ass_contract_context["contract"].refresh_from_db()
+
+    with pytest.raises(serializers.ValidationError) as exc_info:
+        build_ass_qrcode_payload_for_product(ass_contract_context["contract"])
+
+    assert "referenceVehicule est obligatoire" in str(exc_info.value.detail)
+
+
+@pytest.mark.django_db
 def test_build_ass_qrcode_payload_for_garage_uses_card_count(
     ass_contract_context,
 ):
@@ -436,6 +452,7 @@ def test_issue_contract_matches_real_moto_qrcode_success_fixture(ass_contract_co
 
     assert fixture["status_code"] == 200
     assert fixture["body"]["operationStatus"] == "SUCCESS"
+    assert contract.contract_number == "ASS-SANDBOX-LOCAL-TRX"
     assert contract.attestation_reference == "SN004FTNNGK"
     assert contract.attestation_url == "https://aas.diotali.com/#/attestation/SN004FTNNGK"
     assert contract.carte_brune_url == "https://aas.diotali.com/#/carte-brune/SN004FTNNGK"
@@ -454,6 +471,7 @@ def test_issue_contract_matches_real_auto_qrcode_success_fixture(ass_contract_co
 
     assert fixture["status_code"] == 201
     assert fixture["body"]["operationStatus"] == "SUCCESS"
+    assert contract.contract_number == "ASS-SANDBOX-AUTO-20260523140238"
     assert contract.attestation_reference == "SN004Q6BMD5"
     assert contract.attestation_url == "https://aas.diotali.com/#/attestation/SN004Q6BMD5"
     assert contract.carte_brune_url == "https://aas.diotali.com/#/carte-brune/SN004Q6BMD5"
@@ -474,6 +492,7 @@ def test_issue_contract_matches_real_trailer_qrcode_success_fixture(
 
     assert fixture["status_code"] == 201
     assert fixture["body"]["operationStatus"] == "SUCCESS"
+    assert contract.contract_number == "ASS-SANDBOX-TRAILER-20260523140939"
     assert contract.attestation_reference == "SN004NFKDEI"
     assert contract.attestation_url == "https://aas.diotali.com/#/attestation/SN004NFKDEI"
     assert contract.carte_brune_url == "https://aas.diotali.com/#/carte-brune/SN004NFKDEI"

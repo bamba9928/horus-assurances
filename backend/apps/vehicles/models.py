@@ -36,10 +36,31 @@ class Vehicle(models.Model):
     )
     registration_number = models.CharField(max_length=40)
     brand = models.CharField(max_length=100)
+    brand_reference = models.ForeignKey(
+        "reference_data.VehicleBrand",
+        on_delete=models.PROTECT,
+        related_name="vehicles",
+        null=True,
+        blank=True,
+    )
     model = models.CharField(max_length=100)
     chassis_number = models.CharField(max_length=100, blank=True)
     genre = models.CharField(max_length=40)
+    genre_reference = models.ForeignKey(
+        "reference_data.VehicleGenre",
+        on_delete=models.PROTECT,
+        related_name="vehicles",
+        null=True,
+        blank=True,
+    )
     energy = models.CharField(max_length=20, choices=Energy.choices)
+    energy_reference = models.ForeignKey(
+        "reference_data.EnergyType",
+        on_delete=models.PROTECT,
+        related_name="vehicles",
+        null=True,
+        blank=True,
+    )
     fiscal_power = models.PositiveSmallIntegerField(null=True, blank=True)
     seats = models.PositiveSmallIntegerField(null=True, blank=True)
     first_registration_date = models.DateField(null=True, blank=True)
