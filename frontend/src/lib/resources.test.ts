@@ -42,7 +42,8 @@ describe("resources configuration", () => {
       action: "issue",
       guard: {
         confirmationValue: "EMETTRE",
-        preflightAction: "ass-payload-preview",
+        preflightAction: "issue-readiness",
+        preflightMethod: "GET",
       },
     });
     expect(payments?.actions?.[0].guard?.confirmationValue).toBe("CONFIRMER");

@@ -58,6 +58,13 @@ def test_openapi_schema_is_public_and_documents_api_paths():
     assert "/api/auth/me/" in response.data["paths"]
     assert "/api/v1/clients/" in response.data["paths"]
     assert "/api/v1/contracts/{id}/issue/" in response.data["paths"]
+    assert "/api/v1/production/" in response.data["paths"]
+    assert (
+        response.data["paths"]["/api/v1/production/"]["get"]["responses"]["200"][
+            "content"
+        ]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/Production"
+    )
 
 
 def test_swagger_and_redoc_pages_are_available():

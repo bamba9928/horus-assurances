@@ -8,11 +8,14 @@ import {
   clientDocuments,
   clientNotifications,
   clientProfile,
+  contractDocuments,
   contractIssuePreview,
   contractIssued,
   contractsPage,
   createdMotoQuote,
   groupsPage,
+  productionPayload,
+  quoteSummary,
   quotesPage,
   vehiclesPage,
 } from "./fixtures";
@@ -41,6 +44,12 @@ export async function mockInternalApp(page: Page): Promise<InternalAppMocks> {
     if (request.method() === "GET" && url.pathname === "/api/backend/quotes/") {
       return json(route, quotesPage);
     }
+    if (request.method() === "GET" && url.pathname === "/api/backend/quotes/55/summary/") {
+      return json(route, quoteSummary);
+    }
+    if (request.method() === "GET" && url.pathname === "/api/backend/production/") {
+      return json(route, productionPayload);
+    }
     if (request.method() === "POST" && url.pathname === "/api/backend/quotes/") {
       quoteCreateRequests.push(JSON.parse(request.postData() ?? "{}"));
       return json(route, createdMotoQuote, 201);
@@ -58,10 +67,31 @@ export async function mockInternalApp(page: Page): Promise<InternalAppMocks> {
       return json(route, contributorsPage);
     }
     if (
-      request.method() === "POST" &&
-      url.pathname === "/api/backend/contracts/42/ass-payload-preview/"
+      request.method() === "GET" &&
+      url.pathname === "/api/backend/contracts/42/issue-readiness/"
     ) {
       return json(route, contractIssuePreview);
+    }
+    if (request.method() === "GET" && url.pathname === "/api/backend/contracts/42/documents/") {
+      return json(route, contractDocuments);
+    }
+    if (
+      request.method() === "GET" &&
+      url.pathname === "/api/backend/contracts/42/diotali-verification/"
+    ) {
+      return json(route, {
+        operation: "diotali_public_vehicle_verification",
+        registration_number: "DK-1234-AA",
+        normalized_registration_number: "DK1234AA",
+        public_endpoints: [],
+        verification: {
+          is_valid: false,
+          status: "NOT_FOUND",
+          blocks_issue: false,
+          message: "Aucune attestation trouvee pour cette immatriculation.",
+        },
+        result: {},
+      });
     }
     if (request.method() === "POST" && url.pathname === "/api/backend/contracts/42/issue/") {
       issueRequests.push(request.postData() ?? "");

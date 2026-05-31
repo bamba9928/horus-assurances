@@ -6,6 +6,7 @@ import {
   Activity,
   BadgeCheck,
   Banknote,
+  BarChart3,
   Bell,
   Building2,
   Car,
@@ -68,6 +69,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link className={pathname === "/dashboard" ? "nav-item active" : "nav-item"} href="/dashboard">
             <Gauge size={18} />
             Dashboard
+          </Link>
+          <Link className={pathname === "/production" ? "nav-item active" : "nav-item"} href="/production">
+            <BarChart3 size={18} />
+            Production
           </Link>
 
           {navigationResources.map((resource) => {

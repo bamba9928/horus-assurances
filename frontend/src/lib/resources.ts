@@ -61,6 +61,7 @@ export type ResourceAction = {
     description: string;
     confirmationValue: string;
     preflightAction?: string;
+    preflightMethod?: "GET" | "POST";
     previewLabel?: string;
     warningItems?: string[];
   };
@@ -878,8 +879,9 @@ export const resources: ResourceDefinition[] = [
           description:
             "Cette action appelle ASS/Diotali et peut creer une attestation externe. Controlez la previsualisation du payload avant de confirmer.",
           confirmationValue: "EMETTRE",
-          preflightAction: "ass-payload-preview",
-          previewLabel: "Previsualisation ASS/QR",
+          preflightAction: "issue-readiness",
+          preflightMethod: "GET",
+          previewLabel: "Verification emission Diotali",
           warningItems: [
             "Ne lancez pas l'emission depuis un contrat de production non verifie.",
             "Le paiement doit etre confirme et le contrat ne doit pas deja etre emis.",

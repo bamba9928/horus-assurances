@@ -109,6 +109,10 @@ export function DashboardView() {
       </section>
 
       <section className="work-grid">
+        <Link className="work-link" href="/production">
+          <strong>Production</strong>
+          <span>Suivi contrats, paiements et emissions</span>
+        </Link>
         {visibleResources.map((resource) => (
           <Link className="work-link" href={`/resources/${resource.slug}`} key={resource.slug}>
             <strong>{resource.label}</strong>

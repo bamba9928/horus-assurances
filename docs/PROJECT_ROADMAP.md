@@ -56,7 +56,8 @@ Stack cible :
 - Phase 20 : resume complet de proposition backend termine.
 - Phase 21 : verification Diotali locale et publique avant emission terminee.
 - Phase 22 : remorque metier avec 4 documents backend terminee.
-- Phase 23 : mobile Flutter non demarree.
+- Phase 23 : production avec filtres metier backend terminee.
+- Phase 24 : mobile Flutter non demarree.
 
 ## Phases 1 a 12 formalisees
 
@@ -303,8 +304,8 @@ livrees et couvertes par les tests backend.
 
 ## Dernier etat de tests connu
 
-- Suite complete backend : `256 passed`, `22 warnings` connus
-  `drf_spectacular` / Python 3.14 le 2026-05-28
+- Suite complete backend : `274 passed`, `24 warnings` connus
+  `drf_spectacular` / Python 3.14 le 2026-05-31
 - Tests cibles ASS apres ajout Bus ecole et commande RC sandbox : `44 passed`
 - Tests cibles paiements phase 15 : `26 passed`
 - Tests cibles espace client phase 16 : `24 passed`
@@ -313,9 +314,9 @@ livrees et couvertes par les tests backend.
 - `makemigrations --check --dry-run` : OK
 - `manage.py check --deploy` avec settings production : OK
 - CI backend ajoutee dans `.github/workflows/ci.yml`
-- Frontend `npm run typecheck` : OK le 2026-05-27
-- Frontend `npm run test` : `5 passed`, `18 passed` le 2026-05-27
-- Frontend `npm run e2e` : Playwright `3 passed` le 2026-05-27,
+- Frontend `npm run typecheck` : OK le 2026-05-31
+- Frontend `npm run test` : `20 passed` le 2026-05-31
+- Frontend `npm run e2e` : Playwright `6 passed` le 2026-05-31,
   avec backend mocke et Chrome systeme local
 - Referentiels ASS backend le 2026-05-28 :
   - `python manage.py check` : OK
@@ -349,6 +350,20 @@ livrees et couvertes par les tests backend.
     `python -m pytest apps/contracts/tests/test_contract_ass_issue.py apps/contracts/tests/test_contract_security.py apps/quotes/tests/test_quote_ass_calculation.py apps/quotes/tests/test_quote_summary.py`
     : `75 passed`
   - `python -m pytest` : `256 passed`, `22 warnings`
+- Production avec filtres metier le 2026-05-29 :
+  - `python manage.py check` : OK
+  - `python manage.py makemigrations --check --dry-run` : OK
+  - tests cibles production/schema :
+    `python -m pytest apps/common/tests/test_production_api.py apps/common/tests/test_api_hardening.py`
+    : `20 passed`, `22 warnings`
+  - `python -m pytest` : `268 passed`, `22 warnings`
+- Corrections risques production le 2026-05-31 :
+  - `python manage.py check` : OK
+  - `python manage.py makemigrations --check --dry-run` : OK
+  - tests cibles production/schema :
+    `python -m pytest apps/common/tests/test_production_api.py apps/common/tests/test_api_hardening.py`
+    : `26 passed`, `24 warnings`
+  - `python -m pytest` : `274 passed`, `24 warnings`
 
 ## Prochaines validations externes
 
@@ -580,8 +595,14 @@ Fait :
   confirmation par saisie explicite, raisons de desactivation par statut,
   messages metier et blocage de l'execution si la previsualisation requise
   echoue.
-- Action d'emission ASS/QR exposee sur les contrats avec previsualisation
-  obligatoire du payload `ass-payload-preview` avant appel `issue`.
+- Action d'emission ASS/QR exposee sur les contrats avec verification
+  obligatoire `issue-readiness` avant appel `issue`.
+- Details devis branches sur `GET /api/v1/quotes/{id}/summary/` pour afficher
+  resume proposition, garanties RC/CEDEAO, documents attendus et regle remorque.
+- Details contrats branches sur `issue-readiness`, `documents` et verification
+  explicite `diotali-verification`, avec affichage des documents remorque.
+- Page `/production` ajoutee avec filtres metier, totaux, lignes de production
+  et breakdowns journaliers/mensuels/apporteur.
 - Portail client web minimal sur `/client` et `/client-space/access`, avec
   jeton client conserve cote Next.js en cookie HttpOnly et proxy interne
   `/api/client-space`.
@@ -589,8 +610,9 @@ Fait :
   demande OTP mockee et ouverture d'attestation/carte brune apres OTP valide.
 - Suite de tests frontend automatisee avec Vitest.
 - Suite E2E navigateur Playwright ajoutee avec fixtures mockees stables pour
-  couvrir la confirmation d'emission ASS/QR et le parcours portail client
-  OTP + ouverture document.
+  couvrir la confirmation d'emission ASS/QR, le parcours portail client
+  OTP + ouverture document, le resume devis, les controles contrat/Diotali et
+  la page production.
 - Override `postcss` applique pour corriger l'audit npm sans downgrade Next.js.
 
 Taches :
@@ -723,7 +745,6 @@ Fait :
 
 Reste a faire :
 
-- Brancher Next.js sur ce resume avant validation du devis/paiement.
 - Brancher Flutter sur le meme endpoint.
 - Valider avec le metier si le libelle `total_to_pay` doit rester le TTC Horus
   actuel ou afficher une decomposition differente dans l'UI.
@@ -769,9 +790,6 @@ Fait :
 
 Reste a faire :
 
-- Brancher Next.js sur `issue-readiness` avant l'action `issue`.
-- Brancher Next.js sur `diotali-verification` comme verification explicite
-  avant emission quand le gestionnaire veut consulter ApplicationTiers.
 - Confirmer si certains champs optionnels doivent devenir bloquants selon le
   produit ASS.
 ### Phase 22 - Remorque metier avec 4 documents
@@ -810,13 +828,62 @@ Fait :
 
 Reste a faire :
 
-- Brancher Next.js sur la selection du contrat tracteur et l'affichage des
-  quatre documents.
+- Brancher Next.js sur la selection du contrat tracteur dans le formulaire de
+  devis remorque.
 - Brancher Flutter sur le meme contrat documentaire.
 - Confirmer en sandbox si ASS accepte toujours `referenceVehicule` derivee du
   `referenceExterne` stocke comme `contract_number` dans tous les cas.
 
-### Phase 23 - Mobile Flutter
+### Phase 23 - Production avec filtres metier
+
+Objectif : fournir un endpoint backend inspire du compte natif ASS pour suivre
+la production contrats/devis/paiements/emissions selon le role utilisateur.
+
+Etat : termine pour la tranche backend locale.
+
+Fait :
+
+- Endpoint authentifie `GET /api/v1/production/`.
+- Alias historique `GET /api/production/`.
+- Scope de permission applique avant les filtres :
+  - admin general : toute la production ;
+  - admin de groupe : uniquement son groupe ;
+  - apporteur : uniquement sa production.
+- Filtres supportes : jour courant, mois `YYYY-MM`, periode
+  `date_debut` / `date_fin`, apporteur, groupe, statut contrat, statut
+  paiement, produit, immatriculation, client, emis/non emis et remorque.
+- Resultats ligne par ligne avec contrat, client, telephone, vehicule,
+  immatriculation, produit, statuts, montant, commission, apporteur, groupe,
+  dates, disponibilite attestation/carte brune, remorque et nombre de documents
+  disponibles.
+- Les devis sans contrat et les paiements sans contrat sont inclus comme lignes
+  `QUOTE` ou `PAYMENT`, avec `contract_id=None` et les informations devis,
+  paiement, client, vehicule et apporteur disponibles.
+- Pour les lignes `PAYMENT` sans contrat, les filtres `payment_status`,
+  jour/mois/periode et les totaux utilisent le dernier paiement effectivement
+  affiche, et non un ancien paiement ou la date de creation du devis.
+- Resume global : total contrats, emis, en attente, echoues, paiements payes,
+  paiements en attente, paiements echoues, montant total, montant paye,
+  commissions, contrats avec remorque et documents disponibles.
+- Resume enrichi avec `total_items`, `total_quotes_without_contract` et
+  `total_payments_without_contract`.
+- Breakdowns backend pour production journaliere, mensuelle, par groupe et par
+  apporteur.
+- Pagination integree via `page` / `page_size`, avec `page_size` plafonne.
+- Mode export JSON complet via `export=true`, plafonne et signale par
+  `pagination.truncated` si la limite est atteinte.
+- Les filtres de date utilisent un fuseau horaire explicite via `timezone` ou
+  `tz`, avec fallback sur `settings.TIME_ZONE`.
+- Le schema OpenAPI declare le payload de reponse `Production` pour stabiliser
+  le contrat consomme par Next.js et Flutter.
+- Tests backend pour permissions, filtres metier, paiements multiples sans
+  contrat, filtres de date sur paiements, totaux et absence d'acces inter-groupe.
+
+Reste a faire :
+
+- Brancher Flutter sur le meme endpoint.
+
+### Phase 24 - Mobile Flutter
 
 Objectif : application mobile apporteur/client.
 

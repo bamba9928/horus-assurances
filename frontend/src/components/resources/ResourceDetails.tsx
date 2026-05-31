@@ -3,6 +3,7 @@
 import { displayValue, formatDate, formatMoney } from "@/lib/format";
 import type { ResourceDefinition, ResourceColumn } from "@/lib/resources";
 import type { ApiRecord } from "@/types/api";
+import { ResourceOperationalPanels } from "@/components/resources/ResourceOperationalPanels";
 
 export function ResourceDetails({
   record,
@@ -23,6 +24,7 @@ export function ResourceDetails({
           </div>
         ))}
       </dl>
+      <ResourceOperationalPanels record={record} resourceSlug={resource.slug} />
     </div>
   );
 }

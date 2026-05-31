@@ -1,8 +1,13 @@
 import type {
   ApiErrorPayload,
   AuthUser,
+  ContractDocumentsPayload,
+  DiotaliVerificationPayload,
   DashboardPayload,
+  IssueReadinessPayload,
   PaginatedResponse,
+  ProductionPayload,
+  QuoteSummary,
 } from "@/types/api";
 
 const API_PROXY_BASE_URL = "/api/backend";
@@ -48,6 +53,33 @@ export async function logout() {
 
 export async function fetchDashboard(): Promise<DashboardPayload> {
   return request<DashboardPayload>("/dashboard/");
+}
+
+export async function fetchProduction(params: URLSearchParams): Promise<ProductionPayload> {
+  const query = params.toString();
+  return request<ProductionPayload>(`/production/${query ? `?${query}` : ""}`);
+}
+
+export async function fetchQuoteSummary(id: number | string): Promise<QuoteSummary> {
+  return request<QuoteSummary>(`/quotes/${id}/summary/`);
+}
+
+export async function fetchContractDocuments(
+  id: number | string,
+): Promise<ContractDocumentsPayload> {
+  return request<ContractDocumentsPayload>(`/contracts/${id}/documents/`);
+}
+
+export async function fetchContractIssueReadiness(
+  id: number | string,
+): Promise<IssueReadinessPayload> {
+  return request<IssueReadinessPayload>(`/contracts/${id}/issue-readiness/`);
+}
+
+export async function fetchContractDiotaliVerification(
+  id: number | string,
+): Promise<DiotaliVerificationPayload> {
+  return request<DiotaliVerificationPayload>(`/contracts/${id}/diotali-verification/`);
 }
 
 export async function listResource<T>(
@@ -97,6 +129,14 @@ export async function runResourceAction<T>(
   });
 }
 
+export async function fetchResourceAction<T>(
+  endpoint: string,
+  id: number | string,
+  action: string,
+): Promise<T> {
+  return request<T>(`${endpoint}/${id}/${action}/`);
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { proxyBaseUrl = API_PROXY_BASE_URL, ...fetchOptions } = options;
   const headers = new Headers(options.headers);
@@ -136,7 +176,7 @@ async function readErrorPayload(response: Response) {
   }
 }
 
-function errorMessage(payload: ApiErrorPayload | string | null, status: number) {
+export function errorMessage(payload: ApiErrorPayload | string | null, status: number) {
   if (typeof payload === "string") {
     return payload;
   }
@@ -146,5 +186,32 @@ function errorMessage(payload: ApiErrorPayload | string | null, status: number) 
   if (payload?.non_field_errors?.length) {
     return payload.non_field_errors.join(" ");
   }
+  const diotaliPublic = payload?.diotali_public;
+  if (isRecord(diotaliPublic)) {
+    const message =
+      stringValue(diotaliPublic.correction_message) ||
+      stringValue(diotaliPublic.message) ||
+      stringValue(diotaliPublic.operationMessage);
+    if (message) {
+      return message;
+    }
+  }
+  const issueReadiness = payload?.issue_readiness;
+  if (Array.isArray(issueReadiness) && issueReadiness.length) {
+    const messages = issueReadiness
+      .map((item) => (isRecord(item) ? stringValue(item.failure) : ""))
+      .filter(Boolean);
+    if (messages.length) {
+      return messages.join(" ");
+    }
+  }
   return `Erreur API ${status}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }

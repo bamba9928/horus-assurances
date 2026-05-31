@@ -21,7 +21,7 @@ from apps.clients.views import (
 )
 from apps.commissions.views import CommissionRuleViewSet, CommissionViewSet
 from apps.contracts.views import ContractViewSet
-from apps.common.views import DashboardView
+from apps.common.views import DashboardView, ProductionView
 from apps.groups.views import PartnerGroupViewSet
 from apps.notifications.views import NotificationViewSet
 from apps.payments.views import (
@@ -126,10 +126,12 @@ urlpatterns = [
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="auth_token_refresh"),
     path("api/auth/me/", AuthMeView.as_view(), name="auth_me"),
     path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("api/production/", ProductionView.as_view(), name="production"),
     path("api/v1/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/v1/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/v1/auth/me/", AuthMeView.as_view(), name="token_me"),
     path("api/v1/dashboard/", DashboardView.as_view(), name="dashboard_v1"),
+    path("api/v1/production/", ProductionView.as_view(), name="production_v1"),
     path("api/v1/webhooks/wave/", WaveWebhookView.as_view(), name="wave_webhook"),
     path(
         "api/v1/webhooks/orange-money/",

@@ -17,6 +17,7 @@ import {
 import {
   createResource,
   deleteResource,
+  fetchResourceAction,
   listResource,
   runResourceAction,
   updateResource,
@@ -238,11 +239,10 @@ export function ResourcePage({ slug }: { slug: string }) {
       return;
     }
 
-    void runResourceAction<unknown>(
-      activeResource.endpoint,
-      record.id,
-      action.guard.preflightAction,
-    )
+    const preflight =
+      action.guard.preflightMethod === "GET" ? fetchResourceAction : runResourceAction;
+
+    void preflight<unknown>(activeResource.endpoint, record.id, action.guard.preflightAction)
       .then((preview) => {
         setGuardDialog((current) =>
           current?.record === record && current.action === action

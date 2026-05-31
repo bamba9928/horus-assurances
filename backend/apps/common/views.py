@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.audit.models import AuditLog
 from apps.clients.models import Client
@@ -13,7 +15,8 @@ from apps.payments.models import GroupWallet, Payment
 from apps.quotes.models import Quote
 from apps.vehicles.models import Vehicle
 
-from .serializers import DashboardSerializer
+from .production import build_production_payload
+from .serializers import DashboardSerializer, ProductionSerializer
 
 User = get_user_model()
 
@@ -30,6 +33,19 @@ class DashboardView(GenericAPIView):
         }
         serializer = self.get_serializer(data)
         return Response(serializer.data)
+
+
+class ProductionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses={200: ProductionSerializer})
+    def get(self, request):
+        return Response(
+            build_production_payload(
+                user=request.user,
+                query_params=request.query_params,
+            )
+        )
 
 
 def _scope_name(user):
